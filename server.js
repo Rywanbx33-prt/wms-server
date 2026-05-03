@@ -1,54 +1,16 @@
 const express = require("express");
-const fs = require("fs");
 const app = express();
+const path = require("path");
 
 app.use(express.json());
-app.use(express.static("public"));
+app.use(express.static("public")); // 👈 TRÈS IMPORTANT
 
-const DB = "data.json";
-
-/* ================= STOCK ================= */
-app.get("/stock", (req,res)=>{
-  const data = JSON.parse(fs.readFileSync(DB));
-  res.json(data.stock || {});
+app.get("/", (req,res)=>{
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-app.post("/stock", (req,res)=>{
-  const data = JSON.parse(fs.readFileSync(DB));
-  data.stock = req.body;
-  fs.writeFileSync(DB, JSON.stringify(data,null,2));
-  res.json({ok:true});
-});
+const PORT = process.env.PORT || 3000;
 
-/* ================= QUAI ================= */
-app.get("/quai", (req,res)=>{
-  const data = JSON.parse(fs.readFileSync(DB));
-  res.json(data.quai || []);
-});
-
-app.post("/quai", (req,res)=>{
-  const data = JSON.parse(fs.readFileSync(DB));
-  data.quai.push(req.body);
-  fs.writeFileSync(DB, JSON.stringify(data,null,2));
-  res.json({ok:true});
-});
-
-/* ================= RESTOCK ================= */
-app.post("/restock", (req,res)=>{
-  const data = JSON.parse(fs.readFileSync(DB));
-  data.restock.push(req.body);
-  fs.writeFileSync(DB, JSON.stringify(data,null,2));
-  res.json({ok:true});
-});
-
-/* ================= ERRORS ================= */
-app.post("/error", (req,res)=>{
-  const data = JSON.parse(fs.readFileSync(DB));
-  data.errors.push(req.body);
-  fs.writeFileSync(DB, JSON.stringify(data,null,2));
-  res.json({ok:true});
-});
-
-app.listen(3000, ()=>{
-  console.log("WMS server running");
+app.listen(PORT, ()=>{
+  console.log("Server running on port " + PORT);
 });
