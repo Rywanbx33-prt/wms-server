@@ -117,6 +117,15 @@ animation:pulse 1s infinite;
 <div class="box" id="view"></div>
 
 <script>
+async function loadStockServer(){
+  try {
+    let res = await fetch("/stock");
+    stock = await res.json();
+  } catch(e){
+    console.error("Stock error", e);
+    stock = {};
+  }
+}
 
 /* ======================
    PRODUITS
