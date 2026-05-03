@@ -5,40 +5,40 @@
 <title>WMS Préparateur</title>
 
 <style>
-body{
-  font-family:Arial;
-  background:#1e1e2f;
-  color:white;
-  padding:20px;
-}
-
+body{font-family:Arial;background:#eef2f5;padding:20px;}
 h1{text-align:center;}
 
-.tabs{
-  display:flex;
-  justify-content:center;
-  gap:10px;
-  margin-bottom:20px;
+.box{
+  background:white;
+  padding:15px;
+  border-radius:10px;
+  max-width:1000px;
+  margin:auto;
 }
 
-.tab{
-  background:#444;
-  padding:10px 15px;
-  border-radius:6px;
-  cursor:pointer;
-}
-
-.active{background:#3498db;}
-
-.section{display:none;}
-.show{display:block;}
-
-.task{
-  background:#2c2c3c;
+.cmd{
+  padding:10px;
   margin:10px 0;
-  padding:12px;
+  border:1px solid #ddd;
   border-radius:8px;
+  cursor:pointer;
+  background:#fff;
 }
+
+.zone{
+  font-size:18px;
+  font-weight:bold;
+  margin:10px 0;
+}
+
+.item{
+  display:flex;
+  justify-content:space-between;
+  padding:10px;
+  border-bottom:1px solid #eee;
+}
+
+.info{font-size:12px;color:#666;}
 
 button{
   padding:6px 10px;
@@ -47,260 +47,314 @@ button{
   cursor:pointer;
 }
 
-.ok{background:#27ae60;color:white;}
-.err{background:#e74c3c;color:white;}
-.end{background:#3498db;color:white;}
-.gen{background:#9b59b6;color:white;margin:10px auto;display:block;}
+.read{background:#f39c12;color:white;}
+.valid{background:#2ecc71;color:white;}
+.error{background:#e74c3c;color:white;}
+.restock{background:#e74c3c;color:white;}
+.nav{background:#3498db;color:white;}
+.finish{background:#8e44ad;color:white;}
+.back{background:#e74c3c;color:white;}
+
+.badge{
+  display:inline-block;
+  padding:3px 8px;
+  background:#3498db;
+  color:white;
+  border-radius:6px;
+  font-size:12px;
+}
+.quais{
+  display:flex;
+  gap:15px;
+  align-items:center;
+  font-weight:bold;
+  margin:10px 0;
+}
+.done{
+opacity:0.5;
+background:#dcdcdc;
+}
+.heavy{
+background:#ffcccb;
+border-left:5px solid red;
+}
+
+.fire{
+color:red;
+font-weight:bold;
+margin-left:6px;
+animation:pulse 1s infinite;
+}
+
+@keyframes pulse{
+0%{opacity:1;}
+50%{opacity:0.4;}
+100%{opacity:1;}
+}
 </style>
 </head>
 
 <body>
 
-<h1>📦 PRÉPARATEUR</h1>
+<h1>📦 WMS PRÉPARATEUR SERVER</h1>
 
-<div class="tabs">
-  <div class="tab active" onclick="show('orders',event)">📦 Commandes</div>
-  <div class="tab" onclick="show('done',event)">✔ Terminées</div>
-</div>
-
-<!-- BOUTON GENERATION -->
-<button class="gen" onclick="generateOrders()">🔁 Générer 12 commandes</button>
-
-<div id="orders" class="section show"></div>
-<div id="done" class="section"></div>
+<div class="box" id="view"></div>
 
 <script>
 
-const API = "http://192.168.1.46:3000";
+/* ======================
+   PRODUITS
+====================== */
 
-/* =========================
-   EMPLACEMENTS (zones)
-========================= */
-const emplacements = [
-"15-001","15-002","15-003","15-004","15-005","15-006",
-"20-001","20-002","20-003","20-004",
-"30-001","30-002","30-003","30-004",
-"40-001","40-002","40-003","40-004",
-"46-001","46-002","46-003","46-004","46-005","46-006"
+const produits=[
+{nom:"Fromages",emp:"15.002"},
+{nom:"Beurre",emp:"15.003"},
+{nom:"Betterave en conserve",emp:"30.001"},
+{nom:"Carotte en conserve",emp:"30.002"},
+{nom:"Panais en conserve",emp:"30.003"},
+{nom:"Céréale",emp:"30.006"},
+{nom:"Sel de Table",emp:"30.007"},
+{nom:"Moulin a poivre",emp:"30.008"},
+{nom:"Chips",emp:"30.009"},
+{nom:"Sucre",emp:"30.010"},
+{nom:"Farine",emp:"30.011"},
+{nom:"Oeuf",emp:"30.012"},
+{nom:"Miel",emp:"31.001"},
+{nom:"Raisin sec",emp:"31.002"},
+{nom:"Chocolat",emp:"31.003"},
+{nom:"Huile de tournesol",emp:"32.001"},
+{nom:"Huile d'olive",emp:"32.002"},
+{nom:"Huile de colza",emp:"32.003"},
+{nom:"Soupe de carotte",emp:"32.004"},
+{nom:"Soupe de betterave",emp:"32.005"},
+{nom:"Soupe Triple",emp:"32.006"},
+{nom:"Soupe de Panais",emp:"32.007"},
+{nom:"Lait",emp:"32.008"},
+{nom:"Jus de raisin",emp:"32.009"},
+{nom:"Soupe de patate",emp:"32.010"},
+{nom:"Canne a sucre",emp:"40.001"},
+{nom:"Tomates",emp:"40.002"},
+{nom:"Laitue",emp:"40.003"}, 
+{nom:"Fraise",emp:"40.005"}, 
+{nom:"Raisin vrac",emp:"40.006"},
+{nom:"Arbre a chat",emp:"46.001"},
+{nom:"Vêtement",emp:"46.002"},
+{nom:"Mobilier",emp:"46.003"},
+{nom:"Rouleau de papier",emp:"46.004"},
+{nom:"Maison à Oiseaux",emp:"46.005"},
+{nom:"Planche",emp:"46.006"},
+{nom:"Gateaux",emp:"45.003"},
+{nom:"Pain",emp:"45.004"},
 ];
 
-/* =========================
+/* ======================
+   🔥 SERVEUR (REMPLACE LOCALSTORAGE)
+====================== */
+
+let commandes = [];
+
+/* chargement serveur */
+async function loadCommandes(){
+try{
+let res = await fetch("/commandes");
+let data = await res.json();
+
+commandes = data || [];
+
+if(commandes.length === 0){
+commandes = gen();
+await save();
+}
+
+menu();
+
+}catch(e){
+console.error(e);
+commandes = gen();
+await save();
+menu();
+}
+}
+
+/* ======================
+   SAVE SERVEUR
+====================== */
+async function save(){
+await fetch("/commandes", {
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify(commandes)
+});
+}
+
+/* ======================
    GENERATION COMMANDES
-========================= */
-async function generateOrders(){
+====================== */
 
-let orders = [];
+function gen(){
 
-for(let i=1;i<=12;i++){
+let cmds=[];
+let heavyIndex = [0,1,2,3];
 
-let lines = [];
-let used = new Set();
+for(let c=0;c<12;c++){
 
-// 3 à 6 lignes par commande
-let nbLines = Math.floor(Math.random()*4)+3;
+let isHeavyCmd = heavyIndex.includes(c);
 
-for(let j=0;j<nbLines;j++){
+let items = produits.map(p=>{
 
-let emp;
-do{
-emp = emplacements[Math.floor(Math.random()*emplacements.length)];
-}while(used.has(emp));
+let zone = p.emp.split(".")[0];
+let qty;
 
-used.add(emp);
+if(isHeavyCmd && ["30","32","40","45"].includes(zone)){
+qty = Math.floor(Math.random()*2) + 3;
+}
+else if(isHeavyCmd && zone === "15"){
+qty = Math.floor(Math.random()*2) + 2;
+}
+else{
+qty = Math.floor(Math.random()*2) + 1;
+}
 
-lines.push({
-prod:"Produit "+emp,
-emp:emp,
-qty: Math.floor(Math.random()*2)+1  // 1 ou 2
+return {...p, qty, zone};
+
+});
+
+let prep = ["08","09","10"][Math.floor(Math.random()*3)];
+let dest = ["02","03","04","05","06","07"][Math.floor(Math.random()*6)];
+
+let id = `${dest}-${Math.floor(Math.random()*1000)}`;
+
+cmds.push({
+id,
+prep,
+dest,
+items,
+heavy:isHeavyCmd,
+status:"active"
 });
 }
 
-orders.push({
-id:"CMD-"+Date.now()+"-"+i,
-lines:lines
+return cmds;
+}
+
+/* ======================
+   START APP
+====================== */
+loadCommandes();
+
+/* ======================
+   COMPTEUR
+====================== */
+function getPaletteProgress(c){
+let total=0,done=0;
+(c?.items||[]).forEach(i=>{
+let qty=parseInt(i.qty)||0;
+total+=qty;
+if(i.done)done+=qty;
 });
-
+return{
+totalPalettes:total,
+donePalettes:done,
+leftPalettes:total-done
+};
 }
 
-await fetch(API+"/orders",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify(orders)
-});
+/* ======================
+   MENU
+====================== */
+function menu(){
 
-alert("✔ 12 commandes générées");
-loadOrders();
-}
+let v=document.getElementById("view");
 
-/* =========================
-   NAVIGATION
-========================= */
-function show(id,e){
+v.innerHTML=`
+<h2>📦 Commandes SERVER</h2>
 
-document.querySelectorAll(".section").forEach(s=>s.classList.remove("show"));
-document.getElementById(id).classList.add("show");
-
-document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
-if(e) e.target.classList.add("active");
-
-if(id==="orders") loadOrders();
-if(id==="done") loadDone();
-}
-
-/* =========================
-   CHARGER COMMANDES
-========================= */
-async function loadOrders(){
-
-let orders = await (await fetch(API+"/orders")).json();
-
-let div = document.getElementById("orders");
-div.innerHTML="";
-
-if(!orders.length){
-div.innerHTML="✔ Aucune commande";
-return;
-}
-
-orders.forEach((o,i)=>{
-
-let html = `<div class="task">
-<b>${o.id}</b><br><br>`;
-
-o.lines.forEach(l=>{
-html += `
-📦 ${l.prod}<br>
-📍 ${l.emp}<br>
-🔢 Qté : ${l.qty}<br><br>
+<button onclick="regenCommandes()" 
+style="background:#3498db;color:white;padding:10px;border:none;border-radius:6px;margin-bottom:10px;">
+🔄 Générer commandes
+</button>
 `;
-});
 
-html += `
-<button class="ok" onclick="valider(${i})">✔ Valider</button>
-<button class="err" onclick="erreur(${i})">❌ Erreur</button>
-<button class="end" onclick="terminer(${i})">✔ Terminer</button>
-</div>`;
-
-div.innerHTML += html;
-
-});
-
-}
-
-/* =========================
-   VALIDATION (simplifiée)
-========================= */
-async function valider(i){
-
-let orders = await (await fetch(API+"/orders")).json();
-let o = orders[i];
-if(!o) return;
-
-let stock = await (await fetch(API+"/stock")).json();
-
-o.lines.forEach(l=>{
-
-if(!stock[l.emp]) stock[l.emp]={rack:0,pick:0};
-
-stock[l.emp].pick = Math.max(0, stock[l.emp].pick - l.qty);
-
-});
-
-await fetch(API+"/stock",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify(stock)
-});
-
-alert("✔ Commande validée");
-}
-
-/* =========================
-   ERREUR
-========================= */
-async function erreur(i){
-
-let orders = await (await fetch(API+"/orders")).json();
-let o = orders[i];
-if(!o) return;
-
-let type = prompt("Type d'erreur ?") || "non défini";
-
-let errors = await (await fetch(API+"/errors")).json();
-
-o.lines.forEach(l=>{
-errors.push({
-prod:l.prod,
-emp:l.emp,
-type:type,
-time:Date.now()
-});
-});
-
-await fetch(API+"/errors",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify(errors)
-});
-
-alert("❌ Erreur envoyée");
-}
-
-/* =========================
-   TERMINER
-========================= */
-async function terminer(i){
-
-let orders = await (await fetch(API+"/orders")).json();
-let done = await (await fetch(API+"/orders_done")).json();
-
-done.push(orders[i]);
-orders.splice(i,1);
-
-await fetch(API+"/orders",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify(orders)
-});
-
-await fetch(API+"/orders_done",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify(done)
-});
-
-loadOrders();
-}
-
-/* =========================
-   TERMINÉES
-========================= */
-async function loadDone(){
-
-let done = await (await fetch(API+"/orders_done")).json();
-
-let div = document.getElementById("done");
-div.innerHTML="";
-
-if(!done.length){
-div.innerHTML="✔ Rien terminé";
+if(!commandes.length){
+v.innerHTML+="<p>Aucune commande</p>";
 return;
 }
 
-done.forEach(o=>{
-div.innerHTML += `
-<div class="task">
-✔ <b>${o.id}</b><br><br>
-${o.lines.map(l=>`
-📦 ${l.prod} | 📍 ${l.emp} | 🔢 ${l.qty}<br>
-`).join("")}
-</div>`;
-});
+commandes.forEach(c=>{
 
+let p=getPaletteProgress(c);
+
+let d=document.createElement("div");
+d.className="cmd "+(c.heavy?"heavy":"")+(c.status==="envoyée"?"done":"");
+
+d.innerHTML=`
+<span class="badge">Quai ${c.prep}</span><br>
+Commande ${c.id}
+${c.heavy? "<span class='fire'>🔥 LOURDE</span>":""}
+<br><br>
+📦 ${p.donePalettes}/${p.totalPalettes}
+<br>⏳ ${p.leftPalettes}
+`;
+
+d.onclick=()=>open(c);
+
+v.appendChild(d);
+});
 }
 
-/* INIT */
-loadOrders();
+/* ======================
+   REGEN
+====================== */
+async function regenCommandes(){
+commandes=gen().slice(0,12);
+await save();
+menu();
+}
+
+/* ======================
+   OPEN
+====================== */
+let current=null;
+let zones=[];
+let zi=0;
+
+function open(c){
+current=c;
+if(!current.start)current.start=Date.now();
+zones=[...new Set(current.items.map(i=>i.zone))];
+zi=0;
+render();
+}
+
+/* ======================
+   RENDER
+====================== */
+function render(){
+
+let v=document.getElementById("view");
+let z=zones[zi];
+let items=(current.items||[]).filter(i=>i.zone===z);
+
+let done=current.items.filter(i=>i.done).length;
+
+v.innerHTML=`
+<button class="back" onclick="menu()">🏠</button>
+<h2>${current.id}</h2>
+📊 ${done}/${current.items.length}
+`;
+
+items.forEach(i=>{
+let d=document.createElement("div");
+d.className="item "+(i.done?"done":"");
+
+d.innerHTML=`
+<b>${i.nom}</b><br>
+${i.emp} | ${i.qty}
+`;
+
+v.appendChild(d);
+});
+}
 
 </script>
 
