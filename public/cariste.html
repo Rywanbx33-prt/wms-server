@@ -228,20 +228,18 @@ const produits=[
 /* TAB */
 function show(id,e){
 
-document.querySelectorAll(".section").forEach(s=>s.classList.remove("show"));
+document.querySelectorAll(".section").forEach(s => s.classList.remove("show"));
+document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
 
 let el = document.getElementById(id);
 if(el) el.classList.add("show");
 
-document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
 if(e) e.target.classList.add("active");
 
-/* reload safe */
-if(id === "stock") loadStockView?.();
-if(id === "quai") loadQuai?.();
-if(id === "restock") loadRestock?.();
-if(id === "errors") loadErrors?.();
-
+if(id === "stock") loadStockView();
+if(id === "quai") loadQuai();
+if(id === "restock") loadRestock();
+if(id === "errors") loadErrors();
 }
 
 
