@@ -532,15 +532,18 @@ async function loadStockView(){
 let stockCache = {};
 
 /* LOAD STOCK */
+let stock = {};
+
 async function loadStockServer(){
   try {
     let res = await fetch("/stock");
-    stockCache = await res.json();
-    renderStockView(stockCache);
+    stock = await res.json();
   } catch(e){
-    console.error("Erreur chargement stock", e);
+    console.error("stock error", e);
+    stock = {};
   }
 }
+
 
 /* UPDATE STOCK */
 async function updateStock(emp, type, value){
@@ -802,27 +805,22 @@ div.appendChild(d);
 
 }
 /*SUPRIMER MISE A QUAI*/
-function supprimerQuai(i){
+async function supprimerQuai(i){
 
-let res = await fetch("/quai");
-let data = await res.json();
+  let res = await fetch("/quai");
+  let data = await res.json();
 
-	let q = data[i];
-if(!q) return;
+  data.splice(i,1);
 
-/* suppression */
-data.splice(i,1);
+  await fetch("/quai", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify(data)
+  });
 
-await fetch("/quai", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify(data)
-});
-	
-loadQuai();
-
-alert("❌ Mise à quai annulée");
+  loadQuai();
 }
+
 
 /*VALIDER MISE A QUAI*/
 function validerQuai(i){
