@@ -2,12 +2,12 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>WMS CARISTE CLEAN</title>
+<title>WMS Préparateur</title>
 
 <style>
 body{
   font-family:Arial;
-  background:#1e1e2f;
+  background:#121826;
   color:white;
   padding:20px;
 }
@@ -34,17 +34,10 @@ h1{text-align:center;}
 .show{display:block;}
 
 .task{
-  background:#2c2c3c;
+  background:#1f2937;
   margin:10px 0;
   padding:12px;
   border-radius:8px;
-}
-
-input{
-  padding:5px;
-  width:80px;
-  border-radius:5px;
-  border:none;
 }
 
 button{
@@ -54,74 +47,27 @@ button{
   cursor:pointer;
 }
 
-.valid{background:#27ae60;color:white;}
-.clear{background:#e74c3c;color:white;}
+.ok{background:#27ae60;color:white;}
+.err{background:#e74c3c;color:white;}
+.end{background:#3498db;color:white;}
 </style>
 </head>
 
 <body>
 
-<h1>🚜 WMS CARISTE</h1>
+<h1>📦 WMS PRÉPARATEUR</h1>
 
 <div class="tabs">
-  <div class="tab active" onclick="show('restock',event)">🚨 Réappro</div>
-  <div class="tab" onclick="show('stock',event)">📦 Stock</div>
-  <div class="tab" onclick="show('quai',event)">🚚 Quai</div>
-  <div class="tab" onclick="show('errors',event)">❌ Erreurs</div>
+  <div class="tab active" onclick="show('orders',event)">📦 Commandes</div>
+  <div class="tab" onclick="show('done',event)">✔ Terminées</div>
 </div>
 
-<div id="restock" class="section show"></div>
-<div id="stock" class="section"></div>
-<div id="quai" class="section"></div>
-<div id="errors" class="section"></div>
+<div id="orders" class="section show"></div>
+<div id="done" class="section"></div>
 
 <script>
 
 const API = "http://192.168.1.46:3000";
-
-/* =========================
-   PRODUITS
-========================= */
-const produits=[
-{nom:"Fromages",emp:"15.002"},
-{nom:"Beurre",emp:"15.003"},
-{nom:"Betterave en conserve",emp:"30.001"},
-{nom:"Carotte en conserve",emp:"30.002"},
-{nom:"Panais en conserve",emp:"30.003"},
-{nom:"Céréale",emp:"30.006"},
-{nom:"Sel de Table",emp:"30.007"},
-{nom:"Moulin a poivre",emp:"30.008"},
-{nom:"Chips",emp:"30.009"},
-{nom:"Sucre",emp:"30.010"},
-{nom:"Farine",emp:"30.011"},
-{nom:"Oeuf",emp:"30.012"},
-{nom:"Miel",emp:"31.001"},
-{nom:"Raisin sec",emp:"31.002"},
-{nom:"Chocolat",emp:"31.003"},
-{nom:"Huile de tournesol",emp:"32.001"},
-{nom:"Huile d'olive",emp:"32.002"},
-{nom:"Huile de colza",emp:"32.003"},
-{nom:"Soupe de carotte",emp:"32.004"},
-{nom:"Soupe de betterave",emp:"32.005"},
-{nom:"Soupe Triple",emp:"32.006"},
-{nom:"Soupe de Panais",emp:"32.007"},
-{nom:"Lait",emp:"32.008"},
-{nom:"Jus de raisin",emp:"32.009"},
-{nom:"Soupe de patate",emp:"32.010"},
-{nom:"Canne a sucre",emp:"40.001"},
-{nom:"Tomates",emp:"40.002"},
-{nom:"Laitue",emp:"40.003"}, 
-{nom:"Fraise",emp:"40.005"}, 
-{nom:"Raisin vrac",emp:"40.006"},
-{nom:"Arbre a chat",emp:"46.001"},
-{nom:"Vêtement",emp:"46.002"},
-{nom:"Mobilier",emp:"46.003"},
-{nom:"Rouleau de papier",emp:"46.004"},
-{nom:"Maison à Oiseaux",emp:"46.005"},
-{nom:"Planche",emp:"46.006"},
-{nom:"Gateaux",emp:"45.003"},
-{nom:"Pain",emp:"45.004"},
-];
 
 /* =========================
    NAVIGATION
@@ -134,156 +80,42 @@ document.getElementById(id).classList.add("show");
 document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
 if(e) e.target.classList.add("active");
 
-if(id==="stock") loadStock();
-if(id==="restock") loadRestock();
-if(id==="quai") loadQuai();
-if(id==="errors") loadErrors();
+if(id==="orders") loadOrders();
+if(id==="done") loadDone();
 }
 
 /* =========================
-   REAPPRO
+   LOAD COMMANDES
 ========================= */
-async function loadRestock(){
+async function loadOrders(){
 
-let r = await (await fetch(API+"/restock")).json();
+let orders = await (await fetch(API+"/orders")).json();
 
-let div = document.getElementById("restock");
+let div = document.getElementById("orders");
 div.innerHTML="";
 
-if(!r.length){
-div.innerHTML="✔ Aucun réappro";
+if(!orders.length){
+div.innerHTML="✔ Aucune commande";
 return;
 }
 
-r.forEach((x,i)=>{
+orders.forEach((o,i)=>{
 
 div.innerHTML += `
 <div class="task">
-<b>${x.prod}</b> (${x.emp})<br>
-📦 ${x.qty}<br>
 
-<input id="q${i}" type="number" value="${x.qty}">
-<button class="valid" onclick="valider(${i})">✔</button>
-</div>
-`;
+<b>Commande ${o.id}</b><br><br>
 
-});
+📦 ${o.prod}<br>
+📍 ${o.emp}<br>
+🔢 ${o.qty}
 
-}
-
-/* =========================
-   VALID REAPPRO (SERVER)
-========================= */
-async function valider(i){
-
-let r = await (await fetch(API+"/restock")).json();
-let item = r[i];
-if(!item) return;
-
-let q = parseInt(document.getElementById("q"+i).value)||0;
-
-/* stock */
-let stock = await (await fetch(API+"/stock")).json();
-
-if(!stock[item.emp]) stock[item.emp]={rack:0,pick:0};
-
-stock[item.emp].pick += q;
-stock[item.emp].rack = Math.max(0, stock[item.emp].rack - q);
-
-/* save stock */
-await fetch(API+"/stock",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify(stock)
-});
-
-/* remove restock */
-r.splice(i,1);
-
-await fetch(API+"/restock",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify(r)
-});
-
-loadRestock();
-}
-
-/* =========================
-   STOCK
-========================= */
-async function loadStock(){
-
-let stock = await (await fetch(API+"/stock")).json();
-
-let div = document.getElementById("stock");
-div.innerHTML="<h2>📦 STOCK</h2>";
-
-produits.forEach(p=>{
-
-let s = stock[p.emp]||{rack:0,pick:0};
-
-div.innerHTML += `
-<div class="task">
-<b>${p.nom}</b> (${p.emp})<br>
-
-🏭 Rack:
-<input type="number" value="${s.rack}"
-onchange="updateStock('${p.emp}','rack',this.value)">
-
-📦 Pick:
-<input type="number" value="${s.pick}"
-onchange="updateStock('${p.emp}','pick',this.value)">
-</div>
-`;
-
-});
-
-}
-
-/* =========================
-   UPDATE STOCK
-========================= */
-async function updateStock(emp,type,value){
-
-let stock = await (await fetch(API+"/stock")).json();
-
-if(!stock[emp]) stock[emp]={rack:0,pick:0};
-
-stock[emp][type]=parseInt(value)||0;
-
-await fetch(API+"/stock",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify(stock)
-});
-
-}
-
-/* =========================
-   QUAI
-========================= */
-async function loadQuai(){
-
-let q = await (await fetch(API+"/quai")).json();
-
-let div = document.getElementById("quai");
-div.innerHTML="";
-
-if(!q.length){
-div.innerHTML="✔ Aucun quai";
-return;
-}
-
-q.forEach((x,i)=>{
-
-div.innerHTML += `
-<div class="task">
-<b>Commande ${x.id}</b><br>
-🏭 ${x.prep} → 🚚 ${x.dest}
 <br><br>
-<button onclick="validerQuai(${i})">✔</button>
-<button onclick="supprimerQuai(${i})">❌</button>
+
+<button class="ok" onclick="validateLine(${i})">✔ OK</button>
+<button class="err" onclick="sendError(${i})">❌ Erreur</button>
+<button class="end" onclick="finishOrder(${i})">✔ Terminer</button>
+
 </div>
 `;
 
@@ -292,65 +124,121 @@ div.innerHTML += `
 }
 
 /* =========================
-   QUAI VALID
+   TERMINER COMMANDE
 ========================= */
-async function validerQuai(i){
+async function finishOrder(i){
 
-let q = await (await fetch(API+"/quai")).json();
+let orders = await (await fetch(API+"/orders")).json();
 
-q.splice(i,1);
+let done = await (await fetch(API+"/orders_done")).json();
 
-await fetch(API+"/quai",{
+let order = orders[i];
+if(!order) return;
+
+/* move done */
+done.push(order);
+
+/* remove order */
+orders.splice(i,1);
+
+/* save */
+await fetch(API+"/orders",{
 method:"POST",
 headers:{"Content-Type":"application/json"},
-body:JSON.stringify(q)
+body:JSON.stringify(orders)
 });
 
-loadQuai();
+await fetch(API+"/orders_done",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify(done)
+});
+
+loadOrders();
 
 }
 
 /* =========================
-   QUAI DELETE
+   VALIDER UNE LIGNE
 ========================= */
-async function supprimerQuai(i){
+async function validateLine(i){
 
-let q = await (await fetch(API+"/quai")).json();
+let orders = await (await fetch(API+"/orders")).json();
 
-q.splice(i,1);
+let o = orders[i];
+if(!o) return;
 
-await fetch(API+"/quai",{
+/* update stock */
+let stock = await (await fetch(API+"/stock")).json();
+
+if(!stock[o.emp]) stock[o.emp]={rack:0,pick:0};
+
+stock[o.emp].pick = Math.max(0, stock[o.emp].pick - o.qty);
+
+await fetch(API+"/stock",{
 method:"POST",
 headers:{"Content-Type":"application/json"},
-body:JSON.stringify(q)
+body:JSON.stringify(stock)
 });
 
-loadQuai();
+alert("✔ Ligne validée");
 
 }
 
 /* =========================
-   ERREURS
+   ERREUR
 ========================= */
-async function loadErrors(){
+async function sendError(i){
 
-let e = await (await fetch(API+"/errors")).json();
+let orders = await (await fetch(API+"/orders")).json();
 
-let div = document.getElementById("errors");
+let type = prompt("Type d'erreur ?") || "non défini";
+
+let o = orders[i];
+if(!o) return;
+
+let errors = await (await fetch(API+"/errors")).json();
+
+errors.push({
+prod:o.prod,
+emp:o.emp,
+zone:o.zone,
+type:type,
+time:Date.now()
+});
+
+await fetch(API+"/errors",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify(errors)
+});
+
+alert("❌ Erreur envoyée");
+
+}
+
+/* =========================
+   COMMANDES TERMINÉES
+========================= */
+async function loadDone(){
+
+let done = await (await fetch(API+"/orders_done")).json();
+
+let div = document.getElementById("done");
 div.innerHTML="";
 
-if(!e.length){
-div.innerHTML="✔ Aucune erreur";
+if(!done.length){
+div.innerHTML="✔ Rien de terminé";
 return;
 }
 
-e.forEach(x=>{
+done.forEach(o=>{
 
 div.innerHTML += `
 <div class="task">
-❌ ${x.prod}<br>
-📦 ${x.emp}<br>
-⚠ ${x.type}
+✔ <b>${o.id}</b><br>
+📦 ${o.prod}<br>
+📍 ${o.emp}
 </div>
 `;
 
@@ -359,7 +247,7 @@ div.innerHTML += `
 }
 
 /* INIT */
-loadRestock();
+loadOrders();
 
 </script>
 
