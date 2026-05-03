@@ -170,10 +170,6 @@ color:#3498db;
 </div>
 
 
-
-<script src="stock.json"></script>
-<input type="file" onchange="loadStockFile(event)">
-
 <script>
 
 /* =========================
@@ -244,10 +240,11 @@ if(id === "errors") loadErrors?.();
 /* =========================
    REAPPRO
 ========================= */
+async function loadRestock(){
 
-function loadRestock(){
+let res = await fetch("/restock");
+let r = await res.json();
 
-let r=JSON.parse(localStorage.getItem("restock")||"[]");
 let div=document.getElementById("restock");
 div.innerHTML="";
 
@@ -272,9 +269,8 @@ d.innerHTML=`
 🔢 demandé : ${x.qty}<br><br>
 
 <input type="number" id="q${i}" value="${x.qty}">
-<button class="valid" onclick="valider(${i})">✔ Valider</button>
-<button class="clear" onclick="supprimerRestock(${i})">❌ Annuler</button>
-
+<button onclick="valider(${i})">✔ Valider</button>
+<button onclick="supprimerRestock(${i})">❌ Annuler</button>
 `;
 
 div.appendChild(d);
@@ -282,276 +278,186 @@ div.appendChild(d);
 });
 
 }
-/*SUPRIMER REAPPRO*/
-function supprimerRestock(i){
 
-let r = JSON.parse(localStorage.getItem("restock") || "[]");
-
-let item = r[i];
-if(!item) return;
-
-
-/* suppression */
-r.splice(i,1);
-
-localStorage.setItem("restock", JSON.stringify(r));
-
-loadRestock();
-
-alert("❌ Réappro annulé");
-}
-
-/* VALID REAPPRO */
-function valider(i){
-
-let r = JSON.parse(localStorage.getItem("restock") || "[]");
-
-let item = r[i];
-if(!item){
-alert("Réappro introuvable");
-return;
-}
-
-let q = parseInt(document.getElementById("q"+i)?.value || item.qty);
-
-if(isNaN(q) || q <= 0){
-alert("Quantité invalide");
-return;
-}
-
-/* 🔥 STOCK SAFE */
-let stock = JSON.parse(localStorage.getItem("stock") || "{}");
-
-/* sécurité emp */
-let emp = String(item.emp).split(" ")[0].trim();
-
-if(!emp || emp === "undefined"){
-alert("Emp invalide !");
-console.log(item);
-return;
-}
-
-/* init stock si absent */
-if(!stock[emp]){
-stock[emp] = {rack:0, pick:0};
-}
-
-/* ➕ PICK */
-stock[emp].pick = (stock[emp].pick || 0) + q;
-
-/* ➖ RACK */
-stock[emp].rack = (stock[emp].rack || 0) - q;
-
-/* sécurité */
-if(stock[emp].rack < 0) stock[emp].rack = 0;
-
-/* save stock */
-localStorage.setItem("stock", JSON.stringify(stock));
-
-/* 🧹 suppression réappro */
-r.splice(i,1);
-localStorage.setItem("restock", JSON.stringify(r));
-
-/* refresh */
-loadRestock();
-
-console.log("✔ VALIDÉ", emp, q, stock[emp]);
-
-alert("✔ Réappro validé");
-}
 
 /* =========================
    STOCK
 ========================= */
+async function loadStock(){
 
-function getColor(val){
-  if(val <= 0) return "🔴";
-  if(val <= 4) return "🟠";
-  return "🟢";
-}
+  let res = await fetch("/stock");
+  let stock = await res.json();
 
-/* =========================
-   STOCK RACK + PICK
-========================= */
+  let rackDiv = document.getElementById("rack");
+  let pickDiv = document.getElementById("pick");
 
-function loadStock(){
+  if(!rackDiv || !pickDiv){
+    console.error("rack/pick introuvable");
+    return;
+  }
 
-let stock = JSON.parse(localStorage.getItem("stock") || "{}");
+  rackDiv.innerHTML = "";
+  pickDiv.innerHTML = "";
 
-let rackDiv = document.getElementById("rack");
-let pickDiv = document.getElementById("pick");
+  produits.forEach(p => {
 
-if(!rackDiv || !pickDiv){
-  console.error("❌ rack ou pick introuvable");
-  return;
-}
+    let s = stock[p.emp] || {rack:0, pick:0};
 
-rackDiv.innerHTML = "";
-pickDiv.innerHTML = "";
+    // ===== RACK =====
+    rackDiv.innerHTML += `
+      <div class="task">
+        <b>${getColor(s.rack)} ${p.nom}</b> (${p.emp})
 
-produits.forEach(p => {
+        🏭 Rack :
+        <input type="number"
+          value="${s.rack}"
+          onchange="updateStock('${p.emp}','rack',this.value)">
 
-let s = stock[p.emp] || {rack:0,pick:0};
+        <button onclick="saveStock('${p.emp}')">✔</button>
+      </div>
+    `;
 
-// ===== RACK =====
-rackDiv.innerHTML += `
-<div class="task">
-  <b>${getColor(s.rack)} ${p.nom}</b> (${p.emp})
+    // ===== PICK =====
+    pickDiv.innerHTML += `
+      <div class="task">
+        <b>${getColor(s.pick)} ${p.nom}</b> (${p.emp})
 
-  🏭 Rack :
-  <input type="number" value="${s.rack}"
-  onchange="update('${p.emp}','rack',this.value)">
+        📦 Pick :
+        <input type="number"
+          value="${s.pick}"
+          onchange="updateStock('${p.emp}','pick',this.value)">
 
-  <button onclick="validate('${p.emp}')">✔</button>
-</div>
-`;
-
-// ===== PICK =====
-pickDiv.innerHTML += `
-<div class="task">
-  <b>${getColor(s.pick)} ${p.nom}</b> (${p.emp})
-
-  📦 Pick :
-  <input type="number" value="${s.pick}"
-  onchange="update('${p.emp}','pick',this.value)">
-
-  <button onclick="validate('${p.emp}')">✔</button>
-</div>
-`;
-
-});
-
+        <button onclick="saveStock('${p.emp}')">✔</button>
+      </div>
+    `;
+  });
 }
 
 /* =========================
    STOCK PAR ZONE
 ========================= */
+async function loadStockView(){
 
-function loadStockView(){
+  let res = await fetch("/stock");
+  let stock = await res.json();
 
-let stock = JSON.parse(localStorage.getItem("stock") || "{}");
+  let div = document.getElementById("stock");
 
-let div = document.getElementById("stock");
+  if(!div){
+    console.error("❌ div #stock introuvable");
+    return;
+  }
 
-if(!div){
-  console.error("❌ div #stock introuvable");
-  return;
-}
+  div.innerHTML = `<h2>📦 Stock par zone</h2>`;
 
-div.innerHTML = `<h2>📦 Stock par zone</h2>`;
+  let zones = {};
 
-let zones = {};
+  produits.forEach(p => {
 
-// regroupement par zone
-produits.forEach(p => {
+    let zone = p.zone || p.emp.split(".")[0];
 
-let zone = p.zone || p.emp.split(".")[0];
+    if(!zones[zone]) zones[zone] = [];
 
-if(!zones[zone]) zones[zone] = [];
+    let s = stock[p.emp] || {rack:0, pick:0};
 
-let s = stock[p.emp] || {rack:0,pick:0};
+    zones[zone].push(`
+      <div class="task">
+        <b>${p.nom}</b> (${p.emp})<br>
+        🏭 Rack: ${s.rack} | 📦 Pick: ${s.pick}
+      </div>
+    `);
 
-zones[zone].push(`
-  <div class="task">
-    <b>${p.nom}</b> (${p.emp})<br>
-    🏭 Rack: ${s.rack} | 📦 Pick: ${s.pick}
-  </div>
-`);
+  });
 
-});
-
-// affichage
-for(let z in zones){
-  div.innerHTML += `
-    <div class="zoneBlock">
-      <h3>📍 Zone ${z}</h3>
-      ${zones[z].join("")}
-    </div>
-  `;
-}
-
+  for(let z in zones){
+    div.innerHTML += `
+      <div class="zoneBlock">
+        <h3>📍 Zone ${z}</h3>
+        ${zones[z].join("")}
+      </div>
+    `;
+  }
 }
 
 /* =========================
    UPDATE STOCK
 ========================= */
+async function update(emp,type,value){
 
-function update(emp,type,value){
-
-let stock = JSON.parse(localStorage.getItem("stock") || "{}");
-
-if(!stock[emp]){
-  stock[emp] = {rack:0,pick:0};
-}
-
-stock[emp][type] = parseInt(value) || 0;
-
-localStorage.setItem("stock", JSON.stringify(stock));
+  await fetch("/stock/update", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({
+      emp,
+      type,
+      value: parseInt(value) || 0
+    })
+  });
 
 }
 
 /* =========================
    VALIDATION STOCK
 ========================= */
+async function validate(emp){
 
-function validate(emp){
+  await fetch("/stock/validate", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({emp})
+  });
 
-let stock = JSON.parse(localStorage.getItem("stock") || "{}");
-
-if(!stock[emp]){
-  stock[emp] = {rack:0,pick:0};
-}
-
-localStorage.setItem("stock", JSON.stringify(stock));
-
-loadStockView();
-
+  loadStockView();
 }
 
 /* =========================
    TAB SYSTEM PROPRE
 ========================= */
+async function show(id, e){
 
-function show(id,e){
+  document.querySelectorAll(".section")
+    .forEach(s => s.classList.remove("show"));
 
-document.querySelectorAll(".section").forEach(s => s.classList.remove("show"));
+  let el = document.getElementById(id);
+  if(el) el.classList.add("show");
 
-let el = document.getElementById(id);
-if(el) el.classList.add("show");
+  document.querySelectorAll(".tab")
+    .forEach(t => t.classList.remove("active"));
 
-document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-if(e) e.target.classList.add("active");
+  if(e) e.target.classList.add("active");
 
-/* reload */
-if(id === "stock") loadStockView();
-if(id === "quai") loadQuai?.();
-if(id === "restock") loadRestock?.();
-if(id === "errors") loadErrors?.();
+  try{
 
+    if(id === "stock") await loadStockView();
+    if(id === "quai") await loadQuai();
+    if(id === "restock") await loadRestock();
+    if(id === "errors") await loadErrors();
+
+  }catch(err){
+    console.error("TAB ERROR:", err);
+  }
 }
+
 
 /* =========================
    GROUP BY ZONE (utile plus tard)
 ========================= */
-
 function groupByZone(produits){
 
-let zones = {};
+  let zones = {};
 
-produits.forEach(p => {
+  produits.forEach(p => {
 
-let z = p.zone || p.emp.split(".")[0];
+    let z = p.zone || (p.emp ? p.emp.split(".")[0] : "UNKNOWN");
 
-if(!zones[z]) zones[z] = [];
+    if(!zones[z]) zones[z] = [];
 
-zones[z].push(p);
+    zones[z].push(p);
 
-});
+  });
 
-return zones;
+  return zones;
 }
-
-let stockMode = "rack";
 
 /* =========================
    MODE SWITCH
@@ -564,9 +470,10 @@ function setStockMode(mode){
 /* =========================
    STOCK VIEW CARISTE
 ========================= */
-function loadStockView(){
+async function loadStockView(){
 
-  let stock = JSON.parse(localStorage.getItem("stock") || "{}");
+  let res = await fetch("/stock");
+  let stock = await res.json();
 
   let div = document.getElementById("stock");
 
@@ -580,12 +487,13 @@ function loadStockView(){
 
     <button onclick="setStockMode('rack')">🏭 Rack</button>
     <button onclick="setStockMode('pick')">📍 Emplacement</button>
+
     <br><br>
   `;
 
   produits.forEach(p => {
 
-    let s = stock[p.emp] || {rack:0,pick:0};
+    let s = stock[p.emp] || {rack:0, pick:0};
 
     let value = stockMode === "rack" ? s.rack : s.pick;
 
@@ -595,90 +503,192 @@ function loadStockView(){
 
         <br><br>
 
-        <span>${stockMode === "rack" ? "🏭 Rack" : "📍 Emplacement"}</span>
+        <span>${stockMode === "rack" ? "🏭 Rack" : "📍 Pick"}</span>
 
         <input type="number"
           value="${value}"
           onchange="updateStock('${p.emp}', this.value)">
 
-        <button onclick="saveStock('${p.emp}')">✔</button>
+        <button onclick="saveStock()">✔</button>
+      </div>
+    `;
+  });
+}
+
+
+/* =========================
+   STOCK SERVER API
+========================= */
+
+let stockCache = {};
+
+/* LOAD STOCK */
+async function loadStockServer(){
+  try {
+    let res = await fetch("/stock");
+    stockCache = await res.json();
+    renderStockView(stockCache);
+  } catch(e){
+    console.error("Erreur chargement stock", e);
+  }
+}
+
+/* UPDATE STOCK */
+async function updateStock(emp, type, value){
+
+  value = parseInt(value) || 0;
+
+  await fetch("/stock", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({
+      emp,
+      type,
+      value
+    })
+  });
+
+  // refresh local
+  loadStockServer();
+}
+
+/* SAVE STOCK (juste refresh serveur) */
+function saveStock(emp){
+  loadStockServer();
+}
+
+/* EXPORT STOCK (download JSON) */
+async function saveStockToFile(){
+
+  let res = await fetch("/stock");
+  let stock = await res.json();
+
+  let blob = new Blob([JSON.stringify(stock,null,2)], {
+    type: "application/json"
+  });
+
+  let a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "stock.json";
+  a.click();
+}
+
+/* LOAD FILE IMPORT */
+function loadStockFile(e){
+
+  let file = e.target.files[0];
+  if(!file) return;
+
+  let reader = new FileReader();
+
+  reader.onload = async function(evt){
+
+    let data = JSON.parse(evt.target.result);
+
+    await fetch("/stock/import", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(data)
+    });
+
+    alert("✔ Stock importé !");
+    loadStockServer();
+  };
+
+  reader.readAsText(file);
+}
+function loadStockView(){
+
+  let stock = stockCache;
+
+  let div = document.getElementById("stock");
+  if(!div) return;
+
+  div.innerHTML = `
+    <h2>📦 Stock</h2>
+    <button onclick="setStockMode('rack')">🏭 Rack</button>
+    <button onclick="setStockMode('pick')">📍 Pick</button>
+    <br><br>
+  `;
+
+  produits.forEach(p => {
+
+    let s = stock[p.emp] || {rack:0,pick:0};
+    let value = stockMode === "rack" ? s.rack : s.pick;
+
+    div.innerHTML += `
+      <div class="task">
+        <b>${p.nom}</b> (${p.emp})
+
+        <input type="number"
+          value="${value}"
+          onchange="updateStock('${p.emp}','${stockMode}',this.value)">
+
+        <button onclick="saveStock()">✔</button>
       </div>
     `;
   });
 }
 
 /* =========================
-   SAUVEGARDE DU STOCK
-========================= */
-function exportStock(){
-let stock = localStorage.getItem("stock");
-console.log(stock);
-}
-
-function saveStockToFile(){
-
-let stock = localStorage.getItem("stock") || "{}";
-
-let blob = new Blob([stock], {type: "application/json"});
-
-let a = document.createElement("a");
-a.href = URL.createObjectURL(blob);
-a.download = "stock.json";
-
-a.click();
-}
-	function loadStockFile(e){
-
-let file = e.target.files[0];
-
-if(!file) return;
-
-let reader = new FileReader();
-
-reader.onload = function(evt){
-let data = JSON.parse(evt.target.result);
-localStorage.setItem("stock", JSON.stringify(data));
-alert("✔ Stock chargé !");
-};
-
-reader.readAsText(file);
-}
-
-
-/* =========================
    UPDATE LIVE
 ========================= */
 
-function updateStock(emp,value){
+async function updateStock(emp, type, value) {
 
-let stock = JSON.parse(localStorage.getItem("stock") || "{}");
+  let res = await fetch("/stock", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      emp,
+      type,
+      value: parseInt(value) || 0
+    })
+  });
 
-if(!stock[emp]){
-stock[emp] = {rack:0,pick:0};
+  let data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    console.error("Erreur serveur stock");
+    return;
+  }
+
+  // refresh UI si besoin
+ async function loadStockView() {
+
+  let res = await fetch("/stock");
+  let stock = await res.json();
+
+  let div = document.getElementById("stock");
+  if (!div) return;
+
+  div.innerHTML = `
+    <h2>📦 Stock (${stockMode === "rack" ? "Rack" : "Pick"})</h2>
+
+    <button onclick="setStockMode('rack')">🏭 Rack</button>
+    <button onclick="setStockMode('pick')">📍 Pick</button>
+
+    <br><br>
+  `;
+
+  produits.forEach(p => {
+
+    let s = stock[p.emp] || { rack: 0, pick: 0 };
+    let value = stockMode === "rack" ? s.rack : s.pick;
+
+    div.innerHTML += `
+      <div class="task">
+        <b>${p.nom}</b> (${p.emp})
+
+        <input type="number"
+          value="${value}"
+          onchange="updateStock('${p.emp}', '${stockMode}', this.value)">
+
+      </div>
+    `;
+  });
 }
 
-if(stockMode === "rack"){
-stock[emp].rack = parseInt(value) || 0;
-}else{
-stock[emp].pick = parseInt(value) || 0;
-}
-
-localStorage.setItem("stock", JSON.stringify(stock));
-
-}
-function update(emp,type,value){
-
-let stock = JSON.parse(localStorage.getItem("stock")||"{}");
-
-if(!stock[emp]){
-stock[emp] = {rack:0,pick:0};
-}
-
-stock[emp][type] = parseInt(value) || 0;
-
-localStorage.setItem("stock", JSON.stringify(stock));
-
-saveStockToFile(); // 👈 AJOUT IMPORTANT
 }
 
 /* =========================
