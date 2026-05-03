@@ -26,3 +26,10 @@ app.post("/stock", (req, res) => {
 app.listen(process.env.PORT || 3000, () => {
   console.log("Serveur WMS lancé");
 });
+
+app.get("/", (req, res) => {
+  res.json({
+    status: "OK",
+    message: "WMS server actif"
+  });
+});
