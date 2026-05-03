@@ -519,67 +519,99 @@ render();
 /* ======================
    ENVOI CARISTE
 ====================== */
-function validerCommande(){
+async function validerCommande(){
 
-let quai = JSON.parse(localStorage.getItem("quai") || "[]");
+  try {
 
-quai.push({
-  id: current.id,
-  prep: current.prep,
-  dest: current.dest,
-  items: current.items // important si tu veux tout envoyer
-});
+    await fetch("/quai", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({
+        id: current.id,
+        prep: current.prep,
+        dest: current.dest,
+        items: current.items
+      })
+    });
 
-localStorage.setItem("quai", JSON.stringify(quai));
+    current.status = "envoyée";
+    save();
 
-current.status = "envoyée";
+    alert("🚚 Envoyé au cariste");
 
-save();
+    menu();
 
-alert("🚚 Envoyé au cariste");
+  } catch (err) {
+    console.error("Erreur quai:", err);
+    alert("❌ Erreur serveur");
+  }
 
-menu();
 }
 
 
 /* ======================
    ERREUR
 ====================== */
-function sendError(i){
+async function sendError(i){
 
-let errors = JSON.parse(localStorage.getItem("errors") || "[]");
+  try {
 
-errors.push({
-  prod: i.nom,
-  emp: i.emp,
-  zone: i.zone
-});
+    await fetch("/error", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({
+        prod: i.nom,
+        emp: i.emp,
+        zone: i.zone
+      })
+    });
 
-localStorage.setItem("errors", JSON.stringify(errors));
+    alert("❌ Erreur envoyée au serveur");
 
-alert("❌ Erreur envoyée");
+  } catch (err) {
+    console.error("Erreur error:", err);
+    alert("❌ Erreur serveur");
+  }
 
 }
+
 
 /* ======================
    REAPPRO
 ====================== */
-function sendRestock(i){
+async function sendRestock(i){
 
-let restock = JSON.parse(localStorage.getItem("restock") || "[]");
+  try {
 
-restock.push({
-  prod: i.nom,
-  emp: i.emp,
-  zone: i.zone,
-  qty: i.qty
-});
+    await fetch("/restock", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({
+        prod: i.nom,
+        emp: i.emp,
+        zone: i.zone,
+        qty: i.qty
+      })
+    });
 
-localStorage.setItem("restock", JSON.stringify(restock));
+    alert("🚨 Réappro envoyé au serveur");
 
-alert("🚨 Réappro demandé");
+  } catch (err) {
+    console.error("Erreur restock:", err);
+    alert("❌ Erreur envoi serveur");
+  }
 
 }
+
+/* ======================
+   MODIF STOCK
+====================== */
+let stock = await fetch("/stock").then(r=>r.json());
+await fetch("/stock", {
+  method:"POST",
+  headers:{"Content-Type":"application/json"},
+  body: JSON.stringify(stock)
+});
 
 
 /* ======================
