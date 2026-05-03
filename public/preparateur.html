@@ -337,61 +337,69 @@ let items=(current.items||[]).filter(i=>i.zone===z);
 
 let done=current.items.filter(i=>i.done).length;
 
-v.innerHTML=`
-<div>
-<button onclick="valid(i)">✔</button>
-<button onclick="err(i)">❌</button>
-<button onclick="restock(i)">🚨 Réapro</button>
-</div>
-
-`;
-
 items.forEach(i=>{
+
 let d=document.createElement("div");
 d.className="item "+(i.done?"done":"");
 
 d.innerHTML=`
+<div>
 <b>${i.nom}</b><br>
-${i.emp} | ${i.qty}
+${i.emp}<br>
+📦 Demandé : ${i.qty}
+</div>
+
+<div>
+<input type="number"
+min="0"
+max="${i.qty}"
+value="${i.taken || ""}"
+placeholder="Palettes prises"
+style="width:120px;padding:5px;border-radius:6px;border:1px solid #ccc;">
+
+<button onclick="valid(i,this)">✔ Valider</button>
+<button onclick="err(i)">❌</button>
+<button onclick="restock(i)">🚨 Réapro</button>
+</div>
 `;
 
 v.appendChild(d);
+
 });
-}
+
 /* ======================
    ENVOI CARISTE
 ====================== */
-  async function validerCommande(){
+  async function valid(i, btn){
 
-let quai = {
-  id: current.id,
-  prep: current.prep,
-  dest: current.dest,
-  items: current.items
-};
+let input = btn.parentElement.querySelector("input");
+let taken = parseInt(input.value);
 
-try{
-
-await fetch("http://TON_SERVEUR:3000/quai", {
-  method: "POST",
-  headers: {"Content-Type":"application/json"},
-  body: JSON.stringify(quai)
-});
-
-current.status = "envoyée";
-
-await save();
-
-alert("🚚 Envoyé au cariste");
-
-menu();
-
-}catch(e){
-console.error(e);
-alert("❌ Erreur serveur");
+if(isNaN(taken)){
+alert("❌ quantité invalide");
+return;
 }
 
+if(taken < 0){
+alert("❌ impossible");
+return;
 }
+
+if(taken > i.qty){
+alert("❌ tu ne peux pas prendre plus que demandé");
+return;
+}
+
+i.taken = taken;
+i.done = true;
+
+await update();
+
+alert("✔ Produit validé");
+
+render();
+}
+
 
 /* ======================
    ERREUR
