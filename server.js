@@ -33,3 +33,9 @@ app.get("/", (req, res) => {
     message: "WMS server actif"
   });
 });
+app.use(express.json());
+
+app.post("/quai", (req,res)=>{
+  console.log(req.body);
+  res.sendStatus(200);
+});
