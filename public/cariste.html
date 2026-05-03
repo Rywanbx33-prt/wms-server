@@ -126,18 +126,6 @@ button{
   background:#e74c3c;
   color:white;
 }
-.zoneBlock{
-background:white;
-margin:15px 0;
-padding:10px;
-border-radius:10px;
-border-left:5px solid #3498db;
-}
-
-.zoneBlock h3{
-margin:5px 0 10px 0;
-color:#3498db;
-}
 
 
 </style>
@@ -162,7 +150,7 @@ color:#3498db;
 </div>
 
 <!-- sections -->
-<div id="restock" class="section"></div>
+<div id="restock" class="section show"></div>
 <div id="stock" class="section"></div>
 <div id="quai" class="section"></div>
 <div id="errors" class="section"></div>
@@ -170,16 +158,13 @@ color:#3498db;
 </div>
 
 
+
+<script src="stock.js"></script>
+
 <script>
-async function loadStockServer(){
-  try {
-    let res = await fetch("/stock");
-    stock = await res.json();
-  } catch(e){
-    console.error("Stock error", e);
-    stock = {};
-  }
-}
+
+const API = "http://192.168.1.46:3000"; // ton serveur
+
 
 /* =========================
    PRODUITS (ton base)
@@ -228,56 +213,278 @@ const produits=[
 /* TAB */
 function show(id,e){
 
-document.querySelectorAll(".section").forEach(s => s.classList.remove("show"));
-document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+document.querySelectorAll(".section").forEach(s=>s.classList.remove("show"));
 
 let el = document.getElementById(id);
 if(el) el.classList.add("show");
 
+document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
 if(e) e.target.classList.add("active");
 
-if(id === "stock") loadStockView();
-if(id === "quai") loadQuai();
-if(id === "restock") loadRestock();
-if(id === "errors") loadErrors();
+/* reload safe */
+if(id === "stock") loadStockView?.();
+if(id === "quai") loadQuai?.();
+if(id === "restock") loadRestock?.();
+if(id === "errors") loadErrors?.();
+
 }
 
 
 
-/* =========================
-   REAPPRO
-========================= */
-async function loadRestock(){
+async function valider(i){
 
-let res = await fetch("/restock");
-let r = await res.json();
+let r = await (await fetch(API+"/restock")).json();
 
-let div=document.getElementById("restock");
-div.innerHTML="";
-
-if(!document.getElementById("restock")?.classList.contains("show")){
-  return;
-}
-
-if(r.length===0){
-div.innerHTML="✔ Aucun réappro";
+let item = r[i];
+if(!item){
+alert("Réappro introuvable");
 return;
 }
 
-r.forEach((x,i)=>{
+let q = parseInt(document.getElementById("q"+i)?.value || item.qty);
 
-let d=document.createElement("div");
-d.className="task";
+if(isNaN(q) || q <= 0){
+alert("Quantité invalide");
+return;
+}
 
-d.innerHTML=`
-<div class="zone">Zone ${x.zone}</div>
-<b>${x.prod}</b><br>
+/* STOCK SERVER */
+let stock = await (await fetch(API+"/stock")).json();
+
+let emp = String(item.emp).split(" ")[0].trim();
+
+if(!stock[emp]){
+stock[emp] = {rack:0, pick:0};
+}
+
+/* mouvement stock */
+stock[emp].pick = (stock[emp].pick || 0) + q;
+stock[emp].rack = Math.max(0, (stock[emp].rack || 0) - q);
+
+/* SAVE STOCK */
+await fetch(API+"/stock", {
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body: JSON.stringify(stock)
+});
+
+/* REMOVE RESTOCK */
+r.splice(i,1);
+
+await fetch(API+"/restock", {
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body: JSON.stringify(r)
+});
+
+loadRestock();
+
+alert("✔ Réappro validé");
+
+}
+
+/*------------------------------------------------------------------------------*/
+
+/* =========================
+   STOCK
+========================= */
+function getColor(val){
+
+if(val <= 0) return "🔴";
+if(val <= 4) return "🟠";
+if(val >= 5) return "🟢";
+} 
+
+function loadStock(){
+
+let stock = JSON.parse(localStorage.getItem("stock")||"{}");
+
+let rackDiv = document.getElementById("rack");
+let pickDiv = document.getElementById("pick");
+
+rackDiv.innerHTML="";
+pickDiv.innerHTML="";
+
+produits.forEach(p=>{
+
+// 🔥 SAFE STOCK (IMPORTANT)
+let s = stock[p.emp] || {rack:0,pick:0};
+
+let rack = s.rack ?? 0;
+let pick = s.pick ?? 0;
+
+// ===== RACK =====
+rackDiv.innerHTML += `
+<div class="task">
+  <b>${getColor(rack)} ${p.nom}</b> (${p.emp})
+  
+  🏭 Rack :
+  <input type="number" value="${rack}"
+  onchange="update('${p.emp}','rack',this.value)">
+  
+  <button onclick="validate('${p.emp}')">✔</button>
+</div>
+`;
+
+// ===== PICK =====
+pickDiv.innerHTML += `
+<div class="task">
+  <b>${getColor(pick)} ${p.nom}</b> (${p.emp})
+  
+  📦 Pick :
+  <input type="number" value="${pick}"
+  onchange="update('${p.emp}','pick',this.value)">
+  
+  <button onclick="validate('${p.emp}')">✔</button>
+</div>
+`;
+
+});
+
+}
+
+/*-------*/
+
+function loadStockView(){
+
+let stock = JSON.parse(localStorage.getItem("stock")||"{}");
+
+let div = document.getElementById("stock");
+
+div.innerHTML = `
+<h2>📦 Stock global</h2>
+
+<button onclick="toggleDetail('rack')">🏭 Rack</button>
+<button onclick="toggleDetail('pick')">📍 Emplacement</button>
+
+<div id="detail"></div>
+`;
+
+renderStock("rack");
+
+}
+
+/*-------*/
+
+function toggleDetail(type){
+renderStock(type);
+}
+
+/*-------*/
+
+function renderStock(type){
+
+let stock = JSON.parse(localStorage.getItem("stock")||"{}");
+
+let div = document.getElementById("detail");
+div.innerHTML="";
+
+produits.forEach(p=>{
+
+let s = stock[p.emp] || {rack:0,pick:0};
+
+let value = type === "rack" ? s.rack : s.pick;
+
+div.innerHTML += `
+<div class="task">
+
+  <b>${p.nom}</b> (${p.emp})
+
+  <div class="stock">
+
+    <span>${type === "rack" ? "🏭" : "📦"}</span>
+
+    <input type="number"
+      value="${value}"
+      onchange="update('${p.emp}','${type}',this.value)">
+
+    <button onclick="validate('${p.emp}')">✔</button>
+
+  </div>
+
+</div>
+`;
+
+});
+
+}
+
+
+
+/*-------*/
+function showTab(id){
+
+document.querySelectorAll(".section").forEach(s=>s.classList.remove("show"));
+document.getElementById(id).classList.add("show");
+
+document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+event.target.classList.add("active");
+
+}
+
+/*-------*/
+function validate(emp){
+
+let stock = JSON.parse(localStorage.getItem("stock")||"{}");
+
+let rack = document.querySelector(`#detail input[onchange*="${emp}"]`);
+
+if(!stock[emp]) stock[emp] = {rack:0,pick:0};
+
+/* mise à jour directe */
+stock[emp].rack = parseInt(stock[emp].rack || 0);
+stock[emp].pick = parseInt(stock[emp].pick || 0);
+
+localStorage.setItem("stock",JSON.stringify(stock));
+
+loadStockView();
+}
+
+/*-------*/
+
+function show(id,e){
+
+document.querySelectorAll(".section").forEach(s=>s.classList.remove("show"));
+document.getElementById(id).classList.add("show");
+
+document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+e.target.classList.add("active");
+
+/* 👉 si stock ouvert */
+if(id === "stock"){
+loadStockView();
+}
+
+}
+
+/*------------------------------------------------------------------------------*/
+
+/* =========================
+   ERREURS PREPA (LOAD SERVER)
+========================= */
+
+async function loadErrors(){
+
+let e = await (await fetch(API+"/errors")).json();
+
+let div = document.getElementById("errors");
+div.innerHTML = "";
+
+if(!e || e.length === 0){
+div.innerHTML = "✔ Aucune erreur";
+return;
+}
+
+e.forEach(x=>{
+
+let d = document.createElement("div");
+d.className = "task";
+
+d.innerHTML = `
+❌ <b>${x.prod}</b><br>
 📦 ${x.emp}<br>
-🔢 demandé : ${x.qty}<br><br>
-
-<input type="number" id="q${i}" value="${x.qty}">
-<button onclick="valider(${i})">✔ Valider</button>
-<button onclick="supprimerRestock(${i})">❌ Annuler</button>
+📍 Zone ${x.zone || "?"}<br>
+⚠ ${x.type || "non défini"}<br>
 `;
 
 div.appendChild(d);
@@ -286,451 +493,55 @@ div.appendChild(d);
 
 }
 
-
 /* =========================
-   STOCK
-========================= */
-async function loadStock(){
-
-  let res = await fetch("/stock");
-  let stock = await res.json();
-
-  let rackDiv = document.getElementById("rack");
-  let pickDiv = document.getElementById("pick");
-
-  if(!rackDiv || !pickDiv){
-    console.error("rack/pick introuvable");
-    return;
-  }
-
-  rackDiv.innerHTML = "";
-  pickDiv.innerHTML = "";
-
-  produits.forEach(p => {
-
-    let s = stock[p.emp] || {rack:0, pick:0};
-
-    // ===== RACK =====
-    rackDiv.innerHTML += `
-      <div class="task">
-        <b>${getColor(s.rack)} ${p.nom}</b> (${p.emp})
-
-        🏭 Rack :
-        <input type="number"
-          value="${s.rack}"
-          onchange="updateStock('${p.emp}','rack',this.value)">
-
-        <button onclick="saveStock('${p.emp}')">✔</button>
-      </div>
-    `;
-
-    // ===== PICK =====
-    pickDiv.innerHTML += `
-      <div class="task">
-        <b>${getColor(s.pick)} ${p.nom}</b> (${p.emp})
-
-        📦 Pick :
-        <input type="number"
-          value="${s.pick}"
-          onchange="updateStock('${p.emp}','pick',this.value)">
-
-        <button onclick="saveStock('${p.emp}')">✔</button>
-      </div>
-    `;
-  });
-}
-
-/* =========================
-   STOCK PAR ZONE
-========================= */
-async function loadStockView(){
-
-  let res = await fetch("/stock");
-  let stock = await res.json();
-
-  let div = document.getElementById("stock");
-
-  if(!div){
-    console.error("❌ div #stock introuvable");
-    return;
-  }
-
-  div.innerHTML = `<h2>📦 Stock par zone</h2>`;
-
-  let zones = {};
-
-  produits.forEach(p => {
-
-    let zone = p.zone || p.emp.split(".")[0];
-
-    if(!zones[zone]) zones[zone] = [];
-
-    let s = stock[p.emp] || {rack:0, pick:0};
-
-    zones[zone].push(`
-      <div class="task">
-        <b>${p.nom}</b> (${p.emp})<br>
-        🏭 Rack: ${s.rack} | 📦 Pick: ${s.pick}
-      </div>
-    `);
-
-  });
-
-  for(let z in zones){
-    div.innerHTML += `
-      <div class="zoneBlock">
-        <h3>📍 Zone ${z}</h3>
-        ${zones[z].join("")}
-      </div>
-    `;
-  }
-}
-
-/* =========================
-   UPDATE STOCK
-========================= */
-async function update(emp,type,value){
-
-  await fetch("/stock/update", {
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({
-      emp,
-      type,
-      value: parseInt(value) || 0
-    })
-  });
-
-}
-
-/* =========================
-   VALIDATION STOCK
-========================= */
-async function validate(emp){
-
-  await fetch("/stock/validate", {
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({emp})
-  });
-
-  loadStockView();
-}
-
-/* =========================
-   TAB SYSTEM PROPRE
-========================= */
-async function show(id, e){
-
-  document.querySelectorAll(".section")
-    .forEach(s => s.classList.remove("show"));
-
-  let el = document.getElementById(id);
-  if(el) el.classList.add("show");
-
-  document.querySelectorAll(".tab")
-    .forEach(t => t.classList.remove("active"));
-
-  if(e) e.target.classList.add("active");
-
-  try{
-
-    if(id === "stock") await loadStockView();
-    if(id === "quai") await loadQuai();
-    if(id === "restock") await loadRestock();
-    if(id === "errors") await loadErrors();
-
-  }catch(err){
-    console.error("TAB ERROR:", err);
-  }
-}
-
-
-/* =========================
-   GROUP BY ZONE (utile plus tard)
-========================= */
-function groupByZone(produits){
-
-  let zones = {};
-
-  produits.forEach(p => {
-
-    let z = p.zone || (p.emp ? p.emp.split(".")[0] : "UNKNOWN");
-
-    if(!zones[z]) zones[z] = [];
-
-    zones[z].push(p);
-
-  });
-
-  return zones;
-}
-
-/* =========================
-   MODE SWITCH
-========================= */
-function setStockMode(mode){
-  stockMode = mode;
-  loadStockView();
-}
-
-/* =========================
-   STOCK VIEW CARISTE
-========================= */
-async function loadStockView(){
-
-  let res = await fetch("/stock");
-  let stock = await res.json();
-
-  let div = document.getElementById("stock");
-
-  if(!div){
-    console.error("stockView introuvable");
-    return;
-  }
-
-  div.innerHTML = `
-    <h2>📦 Stock (${stockMode === "rack" ? "Rack" : "Emplacement"})</h2>
-
-    <button onclick="setStockMode('rack')">🏭 Rack</button>
-    <button onclick="setStockMode('pick')">📍 Emplacement</button>
-
-    <br><br>
-  `;
-
-  produits.forEach(p => {
-
-    let s = stock[p.emp] || {rack:0, pick:0};
-
-    let value = stockMode === "rack" ? s.rack : s.pick;
-
-    div.innerHTML += `
-      <div class="task">
-        <b>${p.nom}</b> (${p.emp})
-
-        <br><br>
-
-        <span>${stockMode === "rack" ? "🏭 Rack" : "📍 Pick"}</span>
-
-        <input type="number"
-          value="${value}"
-          onchange="updateStock('${p.emp}', this.value)">
-
-        <button onclick="saveStock()">✔</button>
-      </div>
-    `;
-  });
-}
-
-
-/* =========================
-   STOCK SERVER API
+   ENVOYER ERREUR (SERVER)
 ========================= */
 
-let stockCache = {};
+async function sendError(i){
 
-/* LOAD STOCK */
-let stock = {};
+let type = prompt("Type d'erreur ?");
 
-async function loadStockServer(){
-  try {
-    let res = await fetch("/stock");
-    stock = await res.json();
-  } catch(e){
-    console.error("stock error", e);
-    stock = {};
-  }
-}
+if(!type) type = "non défini";
 
+/* récupération serveur */
+let e = await (await fetch(API+"/errors")).json();
 
-/* UPDATE STOCK */
-async function updateStock(emp, type, value){
-
-  value = parseInt(value) || 0;
-
-  await fetch("/stock", {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({
-      emp,
-      type,
-      value
-    })
-  });
-
-  // refresh local
-  loadStockServer();
-}
-
-/* SAVE STOCK (juste refresh serveur) */
-function saveStock(emp){
-  loadStockServer();
-}
-
-/* EXPORT STOCK (download JSON) */
-async function saveStockToFile(){
-
-  let res = await fetch("/stock");
-  let stock = await res.json();
-
-  let blob = new Blob([JSON.stringify(stock,null,2)], {
-    type: "application/json"
-  });
-
-  let a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "stock.json";
-  a.click();
-}
-
-/* LOAD FILE IMPORT */
-function loadStockFile(e){
-
-  let file = e.target.files[0];
-  if(!file) return;
-
-  let reader = new FileReader();
-
-  reader.onload = async function(evt){
-
-    let data = JSON.parse(evt.target.result);
-
-    await fetch("/stock/import", {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body: JSON.stringify(data)
-    });
-
-    alert("✔ Stock importé !");
-    loadStockServer();
-  };
-
-  reader.readAsText(file);
-}
-function loadStockView(){
-
-  let stock = stockCache;
-
-  let div = document.getElementById("stock");
-  if(!div) return;
-
-  div.innerHTML = `
-    <h2>📦 Stock</h2>
-    <button onclick="setStockMode('rack')">🏭 Rack</button>
-    <button onclick="setStockMode('pick')">📍 Pick</button>
-    <br><br>
-  `;
-
-  produits.forEach(p => {
-
-    let s = stock[p.emp] || {rack:0,pick:0};
-    let value = stockMode === "rack" ? s.rack : s.pick;
-
-    div.innerHTML += `
-      <div class="task">
-        <b>${p.nom}</b> (${p.emp})
-
-        <input type="number"
-          value="${value}"
-          onchange="updateStock('${p.emp}','${stockMode}',this.value)">
-
-        <button onclick="saveStock()">✔</button>
-      </div>
-    `;
-  });
-}
-
-/* =========================
-   UPDATE LIVE
-========================= */
-
-async function updateStock(emp, type, value) {
-
-  let res = await fetch("/stock", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      emp,
-      type,
-      value: parseInt(value) || 0
-    })
-  });
-
-  let data = await res.json().catch(() => ({}));
-
-  if (!res.ok) {
-    console.error("Erreur serveur stock");
-    return;
-  }
-
-  // refresh UI si besoin
- async function loadStockView() {
-
-  let res = await fetch("/stock");
-  let stock = await res.json();
-
-  let div = document.getElementById("stock");
-  if (!div) return;
-
-  div.innerHTML = `
-    <h2>📦 Stock (${stockMode === "rack" ? "Rack" : "Pick"})</h2>
-
-    <button onclick="setStockMode('rack')">🏭 Rack</button>
-    <button onclick="setStockMode('pick')">📍 Pick</button>
-
-    <br><br>
-  `;
-
-  produits.forEach(p => {
-
-    let s = stock[p.emp] || { rack: 0, pick: 0 };
-    let value = stockMode === "rack" ? s.rack : s.pick;
-
-    div.innerHTML += `
-      <div class="task">
-        <b>${p.nom}</b> (${p.emp})
-
-        <input type="number"
-          value="${value}"
-          onchange="updateStock('${p.emp}', '${stockMode}', this.value)">
-
-      </div>
-    `;
-  });
-}
-
-}
-
-/* =========================
-   ERREURS PREPA
-========================= */
-async function loadErrors(){
-
-let res = await fetch("/errors");
-let e = await res.json();
-
-let div = document.getElementById("errors");
-div.innerHTML = "";
-
-if(!e || e.length === 0){
-  div.innerHTML = "✔ Aucune erreur";
-  return;
-}
-
-e.forEach(x => {
-
-div.innerHTML += `
-<div class="task">
-❌ <b>${x.prod}</b><br>
-📦 ${x.emp}<br>
-📍 Zone ${x.zone}<br>
-⚠ ${x.type || "non défini"}
-</div>
-`;
-
+/* ajout erreur */
+e.push({
+prod: i.nom,
+emp: i.emp,
+zone: i.zone,
+type: type,
+time: Date.now()
 });
 
+/* sauvegarde serveur */
+await fetch(API+"/errors", {
+method: "POST",
+headers: {"Content-Type":"application/json"},
+body: JSON.stringify(e)
+});
+
+alert("❌ Erreur envoyée");
+
 }
+
+/* =========================
+   AUTO REFRESH
+========================= */
+
+setInterval(()=>{
+loadErrors();
+}, 5000);
+
+/* =========================
+   INIT
+========================= */
+
+loadErrors();
+
+
+/*------------------------------------------------------------------------------*/
 
 /* =========================
    REFRESH
@@ -747,123 +558,87 @@ try{ loadQuai(); }catch(e){ console.log(e); }
 
 }
 
-setInterval(() => {
-  if(document.getElementById("restock")?.classList.contains("show")){
-    loadRestock();
-  }
-  if(document.getElementById("stock")?.classList.contains("show")){
-    loadStockView();
-  }
-  if(document.getElementById("quai")?.classList.contains("show")){
-    loadQuai();
-  }
-  if(document.getElementById("errors")?.classList.contains("show")){
-    loadErrors();
-  }
-}, 2000);
+refresh();
+setInterval(refresh,2000);
+
+/*------------------------------------------------------------------------------*/
 
 /* =========================
-   Mise a quai
+   MAJ STOCK (AJOUT / RETRAIT)
 ========================= */
-async function loadQuai(){
 
-  let res = await fetch("/quai");
-  let data = await res.json();
+async function mod(emp,type,val){
 
-  let div = document.getElementById("quai");
-  div.innerHTML = "";
+let stock = await (await fetch(API+"/stock")).json();
 
-  if(data.length === 0){
-    div.innerHTML = "✔ Aucune mission";
-    return;
-  }
-
-  data.forEach((q,i)=>{
-
-    let d = document.createElement("div");
-    d.className = "task";
-
-    d.innerHTML = `
-      <b>Commande ${q.id}</b><br>
-      🏭 ${q.prep} → 🚚 ${q.dest}
-      <br><br>
-      <button onclick="validerQuai(${i})">✔</button>
-      <button onclick="supprimerQuai(${i})">❌</button>
-    `;
-
-    div.appendChild(d);
-  });
+if(!stock[emp]){
+stock[emp] = {rack:0,pick:0};
 }
 
+stock[emp][type] = (stock[emp][type] || 0) + val;
 
+/* sécurité */
+if(stock[emp][type] < 0){
+stock[emp][type] = 0;
+}
+
+/* SAVE SERVEUR */
+await fetch(API+"/stock", {
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body: JSON.stringify(stock)
+});
+
+loadStock();
+
+}
+
+/*------------------------------------------------------------------------------*/
+
+/* =========================
+   MISE À QUAI (LOAD SERVER)
+========================= */
+
+async function loadQuai(){
+
+let data = await (await fetch(API+"/quai")).json();
+
+let div = document.getElementById("quai");
+div.innerHTML = "";
+
+if(!data || data.length === 0){
+div.innerHTML = "✔ Aucune mission mise à quai";
+return;
+}
+
+data.forEach((q,i)=>{
+
+let prep = q.prep ?? q.quaiPrep ?? "non défini";
+let dest = q.dest ?? q.quaiLivraison ?? "non défini";
+
+let d = document.createElement("div");
+d.className = "task";
+
+d.innerHTML = `
+<div>
+<b>Commande ${q.id ?? "?"}</b><br>
+🏭 Prep : ${prep}<br>
+🚚 Dest : ${dest}
+</div>
+
+<div>
+<button class="valid" onclick="validerQuai(${i})">✔ Valider quai</button>
+<button class="clear" onclick="supprimerQuai(${i})">❌ Annuler</button>
+</div>
+`;
 
 div.appendChild(d);
 
 });
 
 }
-/*SUPRIMER MISE A QUAI*/
-async function supprimerQuai(i){
 
-  let res = await fetch("/quai");
-  let data = await res.json();
-
-  data.splice(i,1);
-
-  await fetch("/quai", {
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify(data)
-  });
-
-  loadQuai();
-}
-
-
-/*VALIDER MISE A QUAI*/
-function validerQuai(i){
-
-let [res1, res2] = await Promise.all([
-  fetch("/quai"),
-  fetch("/quai_done")
-]);
-
-let data = await res1.json();
-let done = await res2.json();
-
-let q = data[i];
-if(!q){
-alert("Mission introuvable");
-return;
-}
-
-let val = document.getElementById("q"+i)?.value;
-
-if(!val || val <= 0){
-alert("Quantité invalide");
-return;
-}
-
-/* suppression mission */
-data.splice(i,1);
-
-await fetch("/quai", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify(data)
-});
-
-await fetch("/quai_done", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify(done)
-});
-
-loadQuai();
-
-alert("✔ Mise à quai validée");
-}
-
+/*------------------------------------------------------------------------------*/
 
 </script>
 
