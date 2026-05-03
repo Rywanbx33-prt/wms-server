@@ -7,7 +7,7 @@
 <style>
 body{
   font-family:Arial;
-  background:#121826;
+  background:#1e1e2f;
   color:white;
   padding:20px;
 }
@@ -34,7 +34,7 @@ h1{text-align:center;}
 .show{display:block;}
 
 .task{
-  background:#1f2937;
+  background:#2c2c3c;
   margin:10px 0;
   padding:12px;
   border-radius:8px;
@@ -55,7 +55,7 @@ button{
 
 <body>
 
-<h1>📦 WMS PRÉPARATEUR</h1>
+<h1>📦 PRÉPARATEUR</h1>
 
 <div class="tabs">
   <div class="tab active" onclick="show('orders',event)">📦 Commandes</div>
@@ -70,7 +70,7 @@ button{
 const API = "http://192.168.1.46:3000";
 
 /* =========================
-   NAVIGATION
+   NAVIGATION (comme ton WMS)
 ========================= */
 function show(id,e){
 
@@ -85,7 +85,7 @@ if(id==="done") loadDone();
 }
 
 /* =========================
-   LOAD COMMANDES
+   CHARGER COMMANDES
 ========================= */
 async function loadOrders(){
 
@@ -104,17 +104,16 @@ orders.forEach((o,i)=>{
 div.innerHTML += `
 <div class="task">
 
-<b>Commande ${o.id}</b><br><br>
-
+<b>Commande ${o.id}</b><br>
 📦 ${o.prod}<br>
 📍 ${o.emp}<br>
-🔢 ${o.qty}
+🔢 Qté : ${o.qty}
 
 <br><br>
 
-<button class="ok" onclick="validateLine(${i})">✔ OK</button>
-<button class="err" onclick="sendError(${i})">❌ Erreur</button>
-<button class="end" onclick="finishOrder(${i})">✔ Terminer</button>
+<button class="ok" onclick="valider(${i})">✔ Valider</button>
+<button class="err" onclick="erreur(${i})">❌ Erreur</button>
+<button class="end" onclick="terminer(${i})">✔ Terminer</button>
 
 </div>
 `;
@@ -124,51 +123,14 @@ div.innerHTML += `
 }
 
 /* =========================
-   TERMINER COMMANDE
+   VALIDER LIGNE (stock - qty)
 ========================= */
-async function finishOrder(i){
+async function valider(i){
 
 let orders = await (await fetch(API+"/orders")).json();
-
-let done = await (await fetch(API+"/orders_done")).json();
-
-let order = orders[i];
-if(!order) return;
-
-/* move done */
-done.push(order);
-
-/* remove order */
-orders.splice(i,1);
-
-/* save */
-await fetch(API+"/orders",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify(orders)
-});
-
-await fetch(API+"/orders_done",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify(done)
-});
-
-loadOrders();
-
-}
-
-/* =========================
-   VALIDER UNE LIGNE
-========================= */
-async function validateLine(i){
-
-let orders = await (await fetch(API+"/orders")).json();
-
 let o = orders[i];
 if(!o) return;
 
-/* update stock */
 let stock = await (await fetch(API+"/stock")).json();
 
 if(!stock[o.emp]) stock[o.emp]={rack:0,pick:0};
@@ -188,7 +150,7 @@ alert("✔ Ligne validée");
 /* =========================
    ERREUR
 ========================= */
-async function sendError(i){
+async function erreur(i){
 
 let orders = await (await fetch(API+"/orders")).json();
 
@@ -218,6 +180,36 @@ alert("❌ Erreur envoyée");
 }
 
 /* =========================
+   TERMINER COMMANDE
+========================= */
+async function terminer(i){
+
+let orders = await (await fetch(API+"/orders")).json();
+let done = await (await fetch(API+"/orders_done")).json();
+
+let o = orders[i];
+if(!o) return;
+
+done.push(o);
+orders.splice(i,1);
+
+await fetch(API+"/orders",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify(orders)
+});
+
+await fetch(API+"/orders_done",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify(done)
+});
+
+loadOrders();
+
+}
+
+/* =========================
    COMMANDES TERMINÉES
 ========================= */
 async function loadDone(){
@@ -228,7 +220,7 @@ let div = document.getElementById("done");
 div.innerHTML="";
 
 if(!done.length){
-div.innerHTML="✔ Rien de terminé";
+div.innerHTML="✔ Rien terminé";
 return;
 }
 
