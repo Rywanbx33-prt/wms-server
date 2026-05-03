@@ -171,6 +171,15 @@ color:#3498db;
 
 
 <script>
+async function loadStockServer(){
+  try {
+    let res = await fetch("/stock");
+    stock = await res.json();
+  } catch(e){
+    console.error("Stock error", e);
+    stock = {};
+  }
+}
 
 /* =========================
    PRODUITS (ton base)
