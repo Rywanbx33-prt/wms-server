@@ -50,6 +50,7 @@ button{
 .ok{background:#27ae60;color:white;}
 .err{background:#e74c3c;color:white;}
 .end{background:#3498db;color:white;}
+.gen{background:#9b59b6;color:white;margin:10px auto;display:block;}
 </style>
 </head>
 
@@ -62,6 +63,9 @@ button{
   <div class="tab" onclick="show('done',event)">✔ Terminées</div>
 </div>
 
+<!-- BOUTON GENERATION -->
+<button class="gen" onclick="generateOrders()">🔁 Générer 12 commandes</button>
+
 <div id="orders" class="section show"></div>
 <div id="done" class="section"></div>
 
@@ -70,7 +74,66 @@ button{
 const API = "http://192.168.1.46:3000";
 
 /* =========================
-   NAVIGATION (comme ton WMS)
+   EMPLACEMENTS (zones)
+========================= */
+const emplacements = [
+"15-001","15-002","15-003","15-004","15-005","15-006",
+"20-001","20-002","20-003","20-004",
+"30-001","30-002","30-003","30-004",
+"40-001","40-002","40-003","40-004",
+"46-001","46-002","46-003","46-004","46-005","46-006"
+];
+
+/* =========================
+   GENERATION COMMANDES
+========================= */
+async function generateOrders(){
+
+let orders = [];
+
+for(let i=1;i<=12;i++){
+
+let lines = [];
+let used = new Set();
+
+// 3 à 6 lignes par commande
+let nbLines = Math.floor(Math.random()*4)+3;
+
+for(let j=0;j<nbLines;j++){
+
+let emp;
+do{
+emp = emplacements[Math.floor(Math.random()*emplacements.length)];
+}while(used.has(emp));
+
+used.add(emp);
+
+lines.push({
+prod:"Produit "+emp,
+emp:emp,
+qty: Math.floor(Math.random()*2)+1  // 1 ou 2
+});
+}
+
+orders.push({
+id:"CMD-"+Date.now()+"-"+i,
+lines:lines
+});
+
+}
+
+await fetch(API+"/orders",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify(orders)
+});
+
+alert("✔ 12 commandes générées");
+loadOrders();
+}
+
+/* =========================
+   NAVIGATION
 ========================= */
 function show(id,e){
 
@@ -101,29 +164,31 @@ return;
 
 orders.forEach((o,i)=>{
 
-div.innerHTML += `
-<div class="task">
+let html = `<div class="task">
+<b>${o.id}</b><br><br>`;
 
-<b>Commande ${o.id}</b><br>
-📦 ${o.prod}<br>
-📍 ${o.emp}<br>
-🔢 Qté : ${o.qty}
+o.lines.forEach(l=>{
+html += `
+📦 ${l.prod}<br>
+📍 ${l.emp}<br>
+🔢 Qté : ${l.qty}<br><br>
+`;
+});
 
-<br><br>
-
+html += `
 <button class="ok" onclick="valider(${i})">✔ Valider</button>
 <button class="err" onclick="erreur(${i})">❌ Erreur</button>
 <button class="end" onclick="terminer(${i})">✔ Terminer</button>
+</div>`;
 
-</div>
-`;
+div.innerHTML += html;
 
 });
 
 }
 
 /* =========================
-   VALIDER LIGNE (stock - qty)
+   VALIDATION (simplifiée)
 ========================= */
 async function valider(i){
 
@@ -133,9 +198,13 @@ if(!o) return;
 
 let stock = await (await fetch(API+"/stock")).json();
 
-if(!stock[o.emp]) stock[o.emp]={rack:0,pick:0};
+o.lines.forEach(l=>{
 
-stock[o.emp].pick = Math.max(0, stock[o.emp].pick - o.qty);
+if(!stock[l.emp]) stock[l.emp]={rack:0,pick:0};
+
+stock[l.emp].pick = Math.max(0, stock[l.emp].pick - l.qty);
+
+});
 
 await fetch(API+"/stock",{
 method:"POST",
@@ -143,8 +212,7 @@ headers:{"Content-Type":"application/json"},
 body:JSON.stringify(stock)
 });
 
-alert("✔ Ligne validée");
-
+alert("✔ Commande validée");
 }
 
 /* =========================
@@ -153,20 +221,20 @@ alert("✔ Ligne validée");
 async function erreur(i){
 
 let orders = await (await fetch(API+"/orders")).json();
-
-let type = prompt("Type d'erreur ?") || "non défini";
-
 let o = orders[i];
 if(!o) return;
 
+let type = prompt("Type d'erreur ?") || "non défini";
+
 let errors = await (await fetch(API+"/errors")).json();
 
+o.lines.forEach(l=>{
 errors.push({
-prod:o.prod,
-emp:o.emp,
-zone:o.zone,
+prod:l.prod,
+emp:l.emp,
 type:type,
 time:Date.now()
+});
 });
 
 await fetch(API+"/errors",{
@@ -176,21 +244,17 @@ body:JSON.stringify(errors)
 });
 
 alert("❌ Erreur envoyée");
-
 }
 
 /* =========================
-   TERMINER COMMANDE
+   TERMINER
 ========================= */
 async function terminer(i){
 
 let orders = await (await fetch(API+"/orders")).json();
 let done = await (await fetch(API+"/orders_done")).json();
 
-let o = orders[i];
-if(!o) return;
-
-done.push(o);
+done.push(orders[i]);
 orders.splice(i,1);
 
 await fetch(API+"/orders",{
@@ -206,11 +270,10 @@ body:JSON.stringify(done)
 });
 
 loadOrders();
-
 }
 
 /* =========================
-   COMMANDES TERMINÉES
+   TERMINÉES
 ========================= */
 async function loadDone(){
 
@@ -225,15 +288,13 @@ return;
 }
 
 done.forEach(o=>{
-
 div.innerHTML += `
 <div class="task">
-✔ <b>${o.id}</b><br>
-📦 ${o.prod}<br>
-📍 ${o.emp}
-</div>
-`;
-
+✔ <b>${o.id}</b><br><br>
+${o.lines.map(l=>`
+📦 ${l.prod} | 📍 ${l.emp} | 🔢 ${l.qty}<br>
+`).join("")}
+</div>`;
 });
 
 }
