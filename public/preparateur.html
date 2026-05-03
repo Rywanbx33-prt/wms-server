@@ -25,20 +25,12 @@ h1{text-align:center;}
   background:#fff;
 }
 
-.zone{
-  font-size:18px;
-  font-weight:bold;
-  margin:10px 0;
-}
-
 .item{
   display:flex;
   justify-content:space-between;
   padding:10px;
   border-bottom:1px solid #eee;
 }
-
-.info{font-size:12px;color:#666;}
 
 button{
   padding:6px 10px;
@@ -55,57 +47,26 @@ button{
 .finish{background:#8e44ad;color:white;}
 .back{background:#e74c3c;color:white;}
 
-.badge{
-  display:inline-block;
-  padding:3px 8px;
-  background:#3498db;
-  color:white;
-  border-radius:6px;
-  font-size:12px;
-}
-.quais{
-  display:flex;
-  gap:15px;
-  align-items:center;
-  font-weight:bold;
-  margin:10px 0;
-}
-.done{
-opacity:0.5;
-background:#dcdcdc;
-}
-.heavy{
-background:#ffcccb;
-border-left:5px solid red;
-}
-
-.fire{
-color:red;
-font-weight:bold;
-margin-left:6px;
-animation:pulse 1s infinite;
-}
-
-@keyframes pulse{
-0%{opacity:1;}
-50%{opacity:0.4;}
-100%{opacity:1;}
-}
+.done{opacity:0.5;background:#dcdcdc;}
 </style>
 </head>
 
 <body>
 
-<h1>📦 WMS PRÉPARATEUR SERVER</h1>
+<h1>📦 WMS PREPARATEUR RENDER</h1>
 
 <div class="box" id="view"></div>
 
 <script>
 
 /* ======================
+   🌐 SERVEUR RENDER
+====================== */
+const API = "https://TON-APP.onrender.com";
+
+/* ======================
    PRODUITS
 ====================== */
-
 const produits=[
 {nom:"Fromages",emp:"15.002"},
 {nom:"Beurre",emp:"15.003"},
@@ -125,43 +86,28 @@ const produits=[
 {nom:"Huile de tournesol",emp:"32.001"},
 {nom:"Huile d'olive",emp:"32.002"},
 {nom:"Huile de colza",emp:"32.003"},
-{nom:"Soupe de carotte",emp:"32.004"},
-{nom:"Soupe de betterave",emp:"32.005"},
-{nom:"Soupe Triple",emp:"32.006"},
-{nom:"Soupe de Panais",emp:"32.007"},
+{nom:"Soupe",emp:"32.004"},
 {nom:"Lait",emp:"32.008"},
-{nom:"Jus de raisin",emp:"32.009"},
-{nom:"Soupe de patate",emp:"32.010"},
-{nom:"Canne a sucre",emp:"40.001"},
 {nom:"Tomates",emp:"40.002"},
-{nom:"Laitue",emp:"40.003"}, 
-{nom:"Fraise",emp:"40.005"}, 
-{nom:"Raisin vrac",emp:"40.006"},
-{nom:"Arbre a chat",emp:"46.001"},
-{nom:"Vêtement",emp:"46.002"},
-{nom:"Mobilier",emp:"46.003"},
-{nom:"Rouleau de papier",emp:"46.004"},
-{nom:"Maison à Oiseaux",emp:"46.005"},
+{nom:"Laitue",emp:"40.003"},
+{nom:"Fraise",emp:"40.005"},
 {nom:"Planche",emp:"46.006"},
-{nom:"Gateaux",emp:"45.003"},
-{nom:"Pain",emp:"45.004"},
 ];
 
 /* ======================
-   🔥 SERVEUR (REMPLACE LOCALSTORAGE)
+   COMMANDES
 ====================== */
-
 let commandes = [];
 
-/* chargement serveur */
-async function loadCommandes(){
+/* ======================
+   LOAD SERVEUR
+====================== */
+async function load(){
 try{
-let res = await fetch("/commandes");
-let data = await res.json();
+let res = await fetch(API + "/commandes");
+commandes = await res.json();
 
-commandes = data || [];
-
-if(commandes.length === 0){
+if(!commandes || commandes.length === 0){
 commandes = gen();
 await save();
 }
@@ -180,7 +126,7 @@ menu();
    SAVE SERVEUR
 ====================== */
 async function save(){
-await fetch("/commandes", {
+await fetch(API + "/commandes", {
 method:"POST",
 headers:{"Content-Type":"application/json"},
 body:JSON.stringify(commandes)
@@ -188,75 +134,41 @@ body:JSON.stringify(commandes)
 }
 
 /* ======================
-   GENERATION COMMANDES
+   GENERATION
 ====================== */
-
 function gen(){
 
 let cmds=[];
-let heavyIndex = [0,1,2,3];
+let heavy=[0,1,2,3];
 
 for(let c=0;c<12;c++){
 
-let isHeavyCmd = heavyIndex.includes(c);
+let isHeavy = heavy.includes(c);
 
 let items = produits.map(p=>{
-
 let zone = p.emp.split(".")[0];
 let qty;
 
-if(isHeavyCmd && ["30","32","40","45"].includes(zone)){
-qty = Math.floor(Math.random()*2) + 3;
-}
-else if(isHeavyCmd && zone === "15"){
-qty = Math.floor(Math.random()*2) + 2;
-}
-else{
-qty = Math.floor(Math.random()*2) + 1;
+if(isHeavy && ["30","32","40"].includes(zone)){
+qty = Math.floor(Math.random()*2)+3;
+}else{
+qty = Math.floor(Math.random()*2)+1;
 }
 
-return {...p, qty, zone};
-
+return {...p,qty,zone,done:false};
 });
 
-let prep = ["08","09","10"][Math.floor(Math.random()*3)];
-let dest = ["02","03","04","05","06","07"][Math.floor(Math.random()*6)];
-
-let id = `${dest}-${Math.floor(Math.random()*1000)}`;
-
 cmds.push({
-id,
-prep,
-dest,
+id:`CMD-${Math.floor(Math.random()*9999)}`,
+prep:"08",
+dest:"02",
 items,
-heavy:isHeavyCmd,
+heavy:isHeavy,
 status:"active"
 });
 }
 
 return cmds;
-}
-
-/* ======================
-   START APP
-====================== */
-loadCommandes();
-
-/* ======================
-   COMPTEUR
-====================== */
-function getPaletteProgress(c){
-let total=0,done=0;
-(c?.items||[]).forEach(i=>{
-let qty=parseInt(i.qty)||0;
-total+=qty;
-if(i.done)done+=qty;
-});
-return{
-totalPalettes:total,
-donePalettes:done,
-leftPalettes:total-done
-};
 }
 
 /* ======================
@@ -267,46 +179,31 @@ function menu(){
 let v=document.getElementById("view");
 
 v.innerHTML=`
-<h2>📦 Commandes SERVER</h2>
-
-<button onclick="regenCommandes()" 
-style="background:#3498db;color:white;padding:10px;border:none;border-radius:6px;margin-bottom:10px;">
-🔄 Générer commandes
-</button>
+<h2>📦 Commandes</h2>
+<button onclick="regen()">🔄 Générer</button>
 `;
-
-if(!commandes.length){
-v.innerHTML+="<p>Aucune commande</p>";
-return;
-}
 
 commandes.forEach(c=>{
 
-let p=getPaletteProgress(c);
+let div=document.createElement("div");
+div.className="cmd";
 
-let d=document.createElement("div");
-d.className="cmd "+(c.heavy?"heavy":"")+(c.status==="envoyée"?"done":"");
-
-d.innerHTML=`
-<span class="badge">Quai ${c.prep}</span><br>
-Commande ${c.id}
-${c.heavy? "<span class='fire'>🔥 LOURDE</span>":""}
-<br><br>
-📦 ${p.donePalettes}/${p.totalPalettes}
-<br>⏳ ${p.leftPalettes}
+div.innerHTML=`
+<b>${c.id}</b><br>
+${c.items.length} articles
 `;
 
-d.onclick=()=>open(c);
+div.onclick=()=>open(c);
 
-v.appendChild(d);
+v.appendChild(div);
 });
 }
 
 /* ======================
    REGEN
 ====================== */
-async function regenCommandes(){
-commandes=gen().slice(0,12);
+async function regen(){
+commandes=gen();
 await save();
 menu();
 }
@@ -320,8 +217,7 @@ let zi=0;
 
 function open(c){
 current=c;
-if(!current.start)current.start=Date.now();
-zones=[...new Set(current.items.map(i=>i.zone))];
+zones=[...new Set(c.items.map(i=>i.zone))];
 zi=0;
 render();
 }
@@ -333,28 +229,98 @@ function render(){
 
 let v=document.getElementById("view");
 let z=zones[zi];
-let items=(current.items||[]).filter(i=>i.zone===z);
-
-let done=current.items.filter(i=>i.done).length;
+let items=current.items.filter(i=>i.zone===z);
 
 v.innerHTML=`
 <button class="back" onclick="menu()">🏠</button>
 <h2>${current.id}</h2>
-📊 ${done}/${current.items.length}
 `;
 
 items.forEach(i=>{
+
 let d=document.createElement("div");
 d.className="item "+(i.done?"done":"");
 
 d.innerHTML=`
+<div>
 <b>${i.nom}</b><br>
 ${i.emp} | ${i.qty}
+</div>
+
+<div>
+<button onclick="valid(i)">✔</button>
+<button onclick="err(i)">❌</button>
+<button onclick="rest(i)">🚨</button>
+</div>
 `;
 
 v.appendChild(d);
+
 });
 }
+
+/* ======================
+   VALIDATION PRODUIT
+====================== */
+async function valid(i){
+i.done=true;
+await update();
+render();
+}
+
+/* ======================
+   ERREUR
+====================== */
+async function err(i){
+
+await fetch(API+"/errors",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+prod:i.nom,
+emp:i.emp,
+zone:i.zone,
+time:Date.now()
+})
+});
+
+alert("❌ envoyé");
+}
+
+/* ======================
+   REAPPRO
+====================== */
+async function rest(i){
+
+await fetch(API+"/restock",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+prod:i.nom,
+emp:i.emp,
+zone:i.zone,
+qty:i.qty
+})
+});
+
+alert("🚨 réappro envoyé");
+}
+
+/* ======================
+   UPDATE SERVEUR
+====================== */
+async function update(){
+await fetch(API+"/commandes",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify(commandes)
+});
+}
+
+/* ======================
+   START
+====================== */
+load();
 
 </script>
 
