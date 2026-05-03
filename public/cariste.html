@@ -692,39 +692,24 @@ async function updateStock(emp, type, value) {
 }
 
 /* =========================
-   SAVE CONFIRM (optionnel)
-========================= */
-
-function saveStock(emp){
-
-  let stock = JSON.parse(localStorage.getItem("stock") || "{}");
-
-  localStorage.setItem("stock", JSON.stringify(stock));
-
-  alert("✔ Stock sauvegardé");
-}
-
-
-
-/* =========================
    ERREURS PREPA
 ========================= */
+async function loadErrors(){
 
-function loadErrors(){
+let res = await fetch("/errors");
+let e = await res.json();
 
-let e=JSON.parse(localStorage.getItem("errors")||"[]");
+let div = document.getElementById("errors");
+div.innerHTML = "";
 
-let div=document.getElementById("errors");
-div.innerHTML="";
-
-if(e.length===0){
-div.innerHTML="✔ Aucune erreur";
-return;
+if(!e || e.length === 0){
+  div.innerHTML = "✔ Aucune erreur";
+  return;
 }
 
-e.forEach(x=>{
+e.forEach(x => {
 
-div.innerHTML+=`
+div.innerHTML += `
 <div class="task">
 ❌ <b>${x.prod}</b><br>
 📦 ${x.emp}<br>
@@ -767,55 +752,13 @@ setInterval(() => {
   }
 }, 2000);
 
-/*=========================
-	MAJ du stock
-========================= */
-function mod(emp,type,val){
-
-let stock = JSON.parse(localStorage.getItem("stock")||"{}");
-
-if(!stock[emp]){
-stock[emp] = {rack:0,pick:0};
-}
-
-stock[emp][type] += val;
-
-/* sécurité */
-if(stock[emp][type] < 0){
-stock[emp][type] = 0;
-}
-
-localStorage.setItem("stock",JSON.stringify(stock));
-
-loadStock();
-}
-
-function update(emp,type,value){
-
-if(!emp){
-console.error("EMP INVALID :", emp);
-return;
-}
-
-emp = String(emp).trim();
-
-let stock = JSON.parse(localStorage.getItem("stock")||"{}");
-
-if(!stock[emp]){
-stock[emp] = {rack:0,pick:0};
-}
-
-stock[emp][type] = parseInt(value);
-
-localStorage.setItem("stock",JSON.stringify(stock));
-}
-
 /* =========================
    Mise a quai
 ========================= */
 function loadQuai(){
 
-let data = JSON.parse(localStorage.getItem("quai") || "[]");
+let res = await fetch("/quai");
+let data = await res.json();
 
 let div = document.getElementById("quai");
 div.innerHTML = "";
@@ -855,16 +798,21 @@ div.appendChild(d);
 /*SUPRIMER MISE A QUAI*/
 function supprimerQuai(i){
 
-let data = JSON.parse(localStorage.getItem("quai") || "[]");
+let res = await fetch("/quai");
+let data = await res.json();
 
-let q = data[i];
+	let q = data[i];
 if(!q) return;
 
 /* suppression */
 data.splice(i,1);
 
-localStorage.setItem("quai", JSON.stringify(data));
-
+await fetch("/quai", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(data)
+});
+	
 loadQuai();
 
 alert("❌ Mise à quai annulée");
@@ -873,8 +821,13 @@ alert("❌ Mise à quai annulée");
 /*VALIDER MISE A QUAI*/
 function validerQuai(i){
 
-let data = JSON.parse(localStorage.getItem("quai") || "[]");
-let done = JSON.parse(localStorage.getItem("quai_done") || "[]");
+let [res1, res2] = await Promise.all([
+  fetch("/quai"),
+  fetch("/quai_done")
+]);
+
+let data = await res1.json();
+let done = await res2.json();
 
 let q = data[i];
 if(!q){
@@ -892,8 +845,17 @@ return;
 /* suppression mission */
 data.splice(i,1);
 
-localStorage.setItem("quai", JSON.stringify(data));
-localStorage.setItem("quai_done", JSON.stringify(done));
+await fetch("/quai", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(data)
+});
+
+await fetch("/quai_done", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(done)
+});
 
 loadQuai();
 
