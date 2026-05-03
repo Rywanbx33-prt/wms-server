@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>WMS Cariste</title>
+
+<style>
+body{
+  font-family:Arial;
+  background:#1e1e2f;
+  color:white;
+  padding:20px;
+}
+
+h1{text-align:center;}
+
+.tabs{
+  display:flex;
+  justify-content:center;
+  margin-bottom:20px;
+}
+
+.tab{
+  background:#444;
+  padding:10px 15px;
+  margin:5px;
+  border-radius:6px;
+  cursor:pointer;
+}
+
+.active{background:#3498db;}
+
+.section{display:none;}
+.show{display:block;}
+
+.task{
+  background:#2c2c3c;
+  margin:10px 0;
+  padding:12px;
+  border-radius:8px;
+}
+
+.zone{
+  font-weight:bold;
+  color:#f39c12;
+}
+
+.badge{
+  background:#e74c3c;
+  padding:2px 6px;
+  border-radius:6px;
+  font-size:12px;
+}
+
+input{
+  padding:5px;
+  width:80px;
+  border-radius:5px;
+  border:none;
+}
+
+button{
+  padding:6px 10px;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+}
+
+.valid{background:#27ae60;color:white;}
+.stock{background:#3498db;color:white;}
+.clear{background:#e74c3c;color:white;}
+
+.tabs{
+  display:flex;
+  gap:10px;
+  margin-bottom:15px;
+}
+
+.tab{
+  padding:10px;
+  background:#444;
+  color:white;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+}
+
+.active{background:#3498db;}
+
+.task{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  background:#2c2c3c;
+  margin:8px 0;
+  padding:10px;
+  border-radius:8px;
+  gap:10px;
+}
+
+.task b{
+  min-width:180px;
+}
+
+.task .stock{
+  display:flex;
+  gap:15px;
+  align-items:center;
+}
+
+input{
+  width:70px;
+  padding:5px;
+  border-radius:5px;
+  border:none;
+  text-align:center;
+}
+
+button{
+  padding:6px 10px;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+}
+.clear{
+  background:#e74c3c;
+  color:white;
+}
+.zoneBlock{
+background:white;
+margin:15px 0;
+padding:10px;
+border-radius:10px;
+border-left:5px solid #3498db;
+}
+
+.zoneBlock h3{
+margin:5px 0 10px 0;
+color:#3498db;
+}
+
+
+</style>
+</head>
+
+<body>
+
+<h1>🚜 WMS CARISTE</h1>
+
+<div class="tabs">
+
+	<div class="tab active" onclick="show('restock',event)">🚨 Réappro</div>
+	<div class="tab" onclick="show('stock',event)">📦 Stock</div>
+	<div class="tab" onclick="show('errors',event)">❌ Erreurs</div>
+	<div class="tab" onclick="show('quai',event)">🚚 Mise à quai</div>
+	
+	<div id="rack" style="display:none;"></div>
+	<div id="pick" style="display:none;"></div>
+
+
+
+</div>
+
+<!-- sections -->
+<div id="restock" class="section"></div>
+<div id="stock" class="section"></div>
+<div id="quai" class="section"></div>
+<div id="errors" class="section"></div>
+
+</div>
+
+
+
+<script src="stock.json"></script>
+<input type="file" onchange="loadStockFile(event)">
+
+<script>
+
+/* =========================
+   PRODUITS (ton base)
+========================= */
+const produits=[
+{nom:"Fromages",emp:"15.002",zone:"15"},
+{nom:"Beurre",emp:"15.003",zone:"15"},
+{nom:"Betterave en conserve",emp:"30.001",zone:"30"},
+{nom:"Carotte en conserve",emp:"30.002",zone:"30"},
+{nom:"Panais en conserve",emp:"30.003",zone:"30"},
+{nom:"Céréale",emp:"30.006",zone:"30"},
+{nom:"Sel de Table",emp:"30.007",zone:"30"},
+{nom:"Moulin a poivre",emp:"30.008",zone:"30"},
+{nom:"Chips",emp:"30.009",zone:"30"},
+{nom:"Sucre",emp:"30.010",zone:"30"},
+{nom:"Farine",emp:"30.011",zone:"30"},
+{nom:"Oeuf",emp:"30.012",zone:"30"},
+{nom:"Miel",emp:"31.001",zone:"31"},
+{nom:"Raisin sec",emp:"31.002",zone:"31"},
+{nom:"Chocolat",emp:"31.003",zone:"31"},
+{nom:"Huile de tournesol",emp:"32.001",zone:"32"},
+{nom:"Huile d'olive",emp:"32.002",zone:"32"},
+{nom:"Huile de colza",emp:"32.003",zone:"32"},
+{nom:"Soupe de carotte",emp:"32.004",zone:"32"},
+{nom:"Soupe de betterave",emp:"32.005",zone:"32"},
+{nom:"Soupe Triple",emp:"32.006",zone:"32"},
+{nom:"Soupe de Panais",emp:"32.007",zone:"32"},
+{nom:"Lait",emp:"32.008",zone:"32"},
+{nom:"Jus de raisin",emp:"32.009",zone:"32"},
+{nom:"Soupe de patate",emp:"32.010",zone:"32"},
+{nom:"Canne a sucre",emp:"40.001",zone:"40"},
+{nom:"Tomates",emp:"40.002",zone:"40"},
+{nom:"Laitue",emp:"40.003",zone:"40"}, 
+{nom:"Fraise",emp:"40.005",zone:"40"}, 
+{nom:"Raisin vrac",emp:"40.006",zone:"40"},
+{nom:"Arbre a chat",emp:"46.001",zone:"46"},
+{nom:"Vêtement",emp:"46.002",zone:"46"},
+{nom:"Mobilier",emp:"46.003",zone:"46"},
+{nom:"Rouleau de papier",emp:"46.004",zone:"46"},
+{nom:"Maison à Oiseaux",emp:"46.005",zone:"46"},
+{nom:"Planche",emp:"46.006",zone:"46"},
+{nom:"Gateaux",emp:"45.003",zone:"45"},
+{nom:"Pain",emp:"45.004",zone:"45"}, 
+];
+
+/* TAB */
+function show(id,e){
+
+document.querySelectorAll(".section").forEach(s=>s.classList.remove("show"));
+
+let el = document.getElementById(id);
+if(el) el.classList.add("show");
+
+document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+if(e) e.target.classList.add("active");
+
+/* reload safe */
+if(id === "stock") loadStockView?.();
+if(id === "quai") loadQuai?.();
+if(id === "restock") loadRestock?.();
+if(id === "errors") loadErrors?.();
+
+}
+
+
+
+/* =========================
+   REAPPRO
+========================= */
+
+function loadRestock(){
+
+let r=JSON.parse(localStorage.getItem("restock")||"[]");
+let div=document.getElementById("restock");
+div.innerHTML="";
+
+if(!document.getElementById("restock")?.classList.contains("show")){
+  return;
+}
+
+if(r.length===0){
+div.innerHTML="✔ Aucun réappro";
+return;
+}
+
+r.forEach((x,i)=>{
+
+let d=document.createElement("div");
+d.className="task";
+
+d.innerHTML=`
+<div class="zone">Zone ${x.zone}</div>
+<b>${x.prod}</b><br>
+📦 ${x.emp}<br>
+🔢 demandé : ${x.qty}<br><br>
+
+<input type="number" id="q${i}" value="${x.qty}">
+<button class="valid" onclick="valider(${i})">✔ Valider</button>
+<button class="clear" onclick="supprimerRestock(${i})">❌ Annuler</button>
+
+`;
+
+div.appendChild(d);
+
+});
+
+}
+/*SUPRIMER REAPPRO*/
+function supprimerRestock(i){
+
+let r = JSON.parse(localStorage.getItem("restock") || "[]");
+
+let item = r[i];
+if(!item) return;
+
+
+/* suppression */
+r.splice(i,1);
+
+localStorage.setItem("restock", JSON.stringify(r));
+
+loadRestock();
+
+alert("❌ Réappro annulé");
+}
+
+/* VALID REAPPRO */
+function valider(i){
+
+let r = JSON.parse(localStorage.getItem("restock") || "[]");
+
+let item = r[i];
+if(!item){
+alert("Réappro introuvable");
+return;
+}
+
+let q = parseInt(document.getElementById("q"+i)?.value || item.qty);
+
+if(isNaN(q) || q <= 0){
+alert("Quantité invalide");
+return;
+}
+
+/* 🔥 STOCK SAFE */
+let stock = JSON.parse(localStorage.getItem("stock") || "{}");
+
+/* sécurité emp */
+let emp = String(item.emp).split(" ")[0].trim();
+
+if(!emp || emp === "undefined"){
+alert("Emp invalide !");
+console.log(item);
+return;
+}
+
+/* init stock si absent */
+if(!stock[emp]){
+stock[emp] = {rack:0, pick:0};
+}
+
+/* ➕ PICK */
+stock[emp].pick = (stock[emp].pick || 0) + q;
+
+/* ➖ RACK */
+stock[emp].rack = (stock[emp].rack || 0) - q;
+
+/* sécurité */
+if(stock[emp].rack < 0) stock[emp].rack = 0;
+
+/* save stock */
+localStorage.setItem("stock", JSON.stringify(stock));
+
+/* 🧹 suppression réappro */
+r.splice(i,1);
+localStorage.setItem("restock", JSON.stringify(r));
+
+/* refresh */
+loadRestock();
+
+console.log("✔ VALIDÉ", emp, q, stock[emp]);
+
+alert("✔ Réappro validé");
+}
+
+/* =========================
+   STOCK
+========================= */
+
+function getColor(val){
+  if(val <= 0) return "🔴";
+  if(val <= 4) return "🟠";
+  return "🟢";
+}
+
+/* =========================
+   STOCK RACK + PICK
+========================= */
+
+function loadStock(){
+
+let stock = JSON.parse(localStorage.getItem("stock") || "{}");
+
+let rackDiv = document.getElementById("rack");
+let pickDiv = document.getElementById("pick");
+
+if(!rackDiv || !pickDiv){
+  console.error("❌ rack ou pick introuvable");
+  return;
+}
+
+rackDiv.innerHTML = "";
+pickDiv.innerHTML = "";
+
+produits.forEach(p => {
+
+let s = stock[p.emp] || {rack:0,pick:0};
+
+// ===== RACK =====
+rackDiv.innerHTML += `
+<div class="task">
+  <b>${getColor(s.rack)} ${p.nom}</b> (${p.emp})
+
+  🏭 Rack :
+  <input type="number" value="${s.rack}"
+  onchange="update('${p.emp}','rack',this.value)">
+
+  <button onclick="validate('${p.emp}')">✔</button>
+</div>
+`;
+
+// ===== PICK =====
+pickDiv.innerHTML += `
+<div class="task">
+  <b>${getColor(s.pick)} ${p.nom}</b> (${p.emp})
+
+  📦 Pick :
+  <input type="number" value="${s.pick}"
+  onchange="update('${p.emp}','pick',this.value)">
+
+  <button onclick="validate('${p.emp}')">✔</button>
+</div>
+`;
+
+});
+
+}
+
+/* =========================
+   STOCK PAR ZONE
+========================= */
+
+function loadStockView(){
+
+let stock = JSON.parse(localStorage.getItem("stock") || "{}");
+
+let div = document.getElementById("stock");
+
+if(!div){
+  console.error("❌ div #stock introuvable");
+  return;
+}
+
+div.innerHTML = `<h2>📦 Stock par zone</h2>`;
+
+let zones = {};
+
+// regroupement par zone
+produits.forEach(p => {
+
+let zone = p.zone || p.emp.split(".")[0];
+
+if(!zones[zone]) zones[zone] = [];
+
+let s = stock[p.emp] || {rack:0,pick:0};
+
+zones[zone].push(`
+  <div class="task">
+    <b>${p.nom}</b> (${p.emp})<br>
+    🏭 Rack: ${s.rack} | 📦 Pick: ${s.pick}
+  </div>
+`);
+
+});
+
+// affichage
+for(let z in zones){
+  div.innerHTML += `
+    <div class="zoneBlock">
+      <h3>📍 Zone ${z}</h3>
+      ${zones[z].join("")}
+    </div>
+  `;
+}
+
+}
+
+/* =========================
+   UPDATE STOCK
+========================= */
+
+function update(emp,type,value){
+
+let stock = JSON.parse(localStorage.getItem("stock") || "{}");
+
+if(!stock[emp]){
+  stock[emp] = {rack:0,pick:0};
+}
+
+stock[emp][type] = parseInt(value) || 0;
+
+localStorage.setItem("stock", JSON.stringify(stock));
+
+}
+
+/* =========================
+   VALIDATION STOCK
+========================= */
+
+function validate(emp){
+
+let stock = JSON.parse(localStorage.getItem("stock") || "{}");
+
+if(!stock[emp]){
+  stock[emp] = {rack:0,pick:0};
+}
+
+localStorage.setItem("stock", JSON.stringify(stock));
+
+loadStockView();
+
+}
+
+/* =========================
+   TAB SYSTEM PROPRE
+========================= */
+
+function show(id,e){
+
+document.querySelectorAll(".section").forEach(s => s.classList.remove("show"));
+
+let el = document.getElementById(id);
+if(el) el.classList.add("show");
+
+document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+if(e) e.target.classList.add("active");
+
+/* reload */
+if(id === "stock") loadStockView();
+if(id === "quai") loadQuai?.();
+if(id === "restock") loadRestock?.();
+if(id === "errors") loadErrors?.();
+
+}
+
+/* =========================
+   GROUP BY ZONE (utile plus tard)
+========================= */
+
+function groupByZone(produits){
+
+let zones = {};
+
+produits.forEach(p => {
+
+let z = p.zone || p.emp.split(".")[0];
+
+if(!zones[z]) zones[z] = [];
+
+zones[z].push(p);
+
+});
+
+return zones;
+}
+
+let stockMode = "rack";
+
+/* =========================
+   MODE SWITCH
+========================= */
+function setStockMode(mode){
+  stockMode = mode;
+  loadStockView();
+}
+
+/* =========================
+   STOCK VIEW CARISTE
+========================= */
+function loadStockView(){
+
+  let stock = JSON.parse(localStorage.getItem("stock") || "{}");
+
+  let div = document.getElementById("stock");
+
+  if(!div){
+    console.error("stockView introuvable");
+    return;
+  }
+
+  div.innerHTML = `
+    <h2>📦 Stock (${stockMode === "rack" ? "Rack" : "Emplacement"})</h2>
+
+    <button onclick="setStockMode('rack')">🏭 Rack</button>
+    <button onclick="setStockMode('pick')">📍 Emplacement</button>
+    <br><br>
+  `;
+
+  produits.forEach(p => {
+
+    let s = stock[p.emp] || {rack:0,pick:0};
+
+    let value = stockMode === "rack" ? s.rack : s.pick;
+
+    div.innerHTML += `
+      <div class="task">
+        <b>${p.nom}</b> (${p.emp})
+
+        <br><br>
+
+        <span>${stockMode === "rack" ? "🏭 Rack" : "📍 Emplacement"}</span>
+
+        <input type="number"
+          value="${value}"
+          onchange="updateStock('${p.emp}', this.value)">
+
+        <button onclick="saveStock('${p.emp}')">✔</button>
+      </div>
+    `;
+  });
+}
+
+/* =========================
+   SAUVEGARDE DU STOCK
+========================= */
+function exportStock(){
+let stock = localStorage.getItem("stock");
+console.log(stock);
+}
+
+function saveStockToFile(){
+
+let stock = localStorage.getItem("stock") || "{}";
+
+let blob = new Blob([stock], {type: "application/json"});
+
+let a = document.createElement("a");
+a.href = URL.createObjectURL(blob);
+a.download = "stock.json";
+
+a.click();
+}
+	function loadStockFile(e){
+
+let file = e.target.files[0];
+
+if(!file) return;
+
+let reader = new FileReader();
+
+reader.onload = function(evt){
+let data = JSON.parse(evt.target.result);
+localStorage.setItem("stock", JSON.stringify(data));
+alert("✔ Stock chargé !");
+};
+
+reader.readAsText(file);
+}
+
+
+/* =========================
+   UPDATE LIVE
+========================= */
+
+function updateStock(emp,value){
+
+let stock = JSON.parse(localStorage.getItem("stock") || "{}");
+
+if(!stock[emp]){
+stock[emp] = {rack:0,pick:0};
+}
+
+if(stockMode === "rack"){
+stock[emp].rack = parseInt(value) || 0;
+}else{
+stock[emp].pick = parseInt(value) || 0;
+}
+
+localStorage.setItem("stock", JSON.stringify(stock));
+
+}
+function update(emp,type,value){
+
+let stock = JSON.parse(localStorage.getItem("stock")||"{}");
+
+if(!stock[emp]){
+stock[emp] = {rack:0,pick:0};
+}
+
+stock[emp][type] = parseInt(value) || 0;
+
+localStorage.setItem("stock", JSON.stringify(stock));
+
+saveStockToFile(); // 👈 AJOUT IMPORTANT
+}
+
+/* =========================
+   SAVE CONFIRM (optionnel)
+========================= */
+
+function saveStock(emp){
+
+  let stock = JSON.parse(localStorage.getItem("stock") || "{}");
+
+  localStorage.setItem("stock", JSON.stringify(stock));
+
+  alert("✔ Stock sauvegardé");
+}
+
+
+
+/* =========================
+   ERREURS PREPA
+========================= */
+
+function loadErrors(){
+
+let e=JSON.parse(localStorage.getItem("errors")||"[]");
+
+let div=document.getElementById("errors");
+div.innerHTML="";
+
+if(e.length===0){
+div.innerHTML="✔ Aucune erreur";
+return;
+}
+
+e.forEach(x=>{
+
+div.innerHTML+=`
+<div class="task">
+❌ <b>${x.prod}</b><br>
+📦 ${x.emp}<br>
+📍 Zone ${x.zone}<br>
+⚠ ${x.type || "non défini"}
+</div>
+`;
+
+});
+
+}
+
+/* =========================
+   REFRESH
+========================= */
+
+function refresh(){
+
+try{ loadRestock(); }catch(e){ console.log(e); }
+try{ loadStock(); }catch(e){ console.log(e); }
+try{ loadErrors(); }catch(e){ console.log(e); }
+try{ loadQuai(); }catch(e){ console.log(e); }
+
+
+
+}
+
+setInterval(() => {
+  if(document.getElementById("restock")?.classList.contains("show")){
+    loadRestock();
+  }
+  if(document.getElementById("stock")?.classList.contains("show")){
+    loadStockView();
+  }
+  if(document.getElementById("quai")?.classList.contains("show")){
+    loadQuai();
+  }
+  if(document.getElementById("errors")?.classList.contains("show")){
+    loadErrors();
+  }
+}, 2000);
+
+/*=========================
+	MAJ du stock
+========================= */
+function mod(emp,type,val){
+
+let stock = JSON.parse(localStorage.getItem("stock")||"{}");
+
+if(!stock[emp]){
+stock[emp] = {rack:0,pick:0};
+}
+
+stock[emp][type] += val;
+
+/* sécurité */
+if(stock[emp][type] < 0){
+stock[emp][type] = 0;
+}
+
+localStorage.setItem("stock",JSON.stringify(stock));
+
+loadStock();
+}
+
+function update(emp,type,value){
+
+if(!emp){
+console.error("EMP INVALID :", emp);
+return;
+}
+
+emp = String(emp).trim();
+
+let stock = JSON.parse(localStorage.getItem("stock")||"{}");
+
+if(!stock[emp]){
+stock[emp] = {rack:0,pick:0};
+}
+
+stock[emp][type] = parseInt(value);
+
+localStorage.setItem("stock",JSON.stringify(stock));
+}
+
+/* =========================
+   Mise a quai
+========================= */
+function loadQuai(){
+
+let data = JSON.parse(localStorage.getItem("quai") || "[]");
+
+let div = document.getElementById("quai");
+div.innerHTML = "";
+
+if(data.length === 0){
+div.innerHTML = "✔ Aucune mission mise à quai";
+return;
+}
+
+data.forEach((q,i)=>{
+
+let prep = q.prep ?? q.quaiPrep ?? "non défini";
+let dest = q.dest ?? q.quaiLivraison ?? "non défini";
+
+let d = document.createElement("div");
+d.className = "task";
+
+d.innerHTML = `
+<div>
+<b>Commande ${q.id ?? "?"}</b><br>
+🏭 Prep : ${prep}<br>
+🚚 Dest : ${dest}
+</div>
+
+<div>
+<button class="valid" onclick="validerQuai(${i})">✔ Valider quai</button>
+<button class="clear" onclick="supprimerQuai(${i})">❌ Annuler</button>
+</div>
+`;
+
+
+div.appendChild(d);
+
+});
+
+}
+/*SUPRIMER MISE A QUAI*/
+function supprimerQuai(i){
+
+let data = JSON.parse(localStorage.getItem("quai") || "[]");
+
+let q = data[i];
+if(!q) return;
+
+/* suppression */
+data.splice(i,1);
+
+localStorage.setItem("quai", JSON.stringify(data));
+
+loadQuai();
+
+alert("❌ Mise à quai annulée");
+}
+
+/*VALIDER MISE A QUAI*/
+function validerQuai(i){
+
+let data = JSON.parse(localStorage.getItem("quai") || "[]");
+let done = JSON.parse(localStorage.getItem("quai_done") || "[]");
+
+let q = data[i];
+if(!q){
+alert("Mission introuvable");
+return;
+}
+
+let val = document.getElementById("q"+i)?.value;
+
+if(!val || val <= 0){
+alert("Quantité invalide");
+return;
+}
+
+/* suppression mission */
+data.splice(i,1);
+
+localStorage.setItem("quai", JSON.stringify(data));
+localStorage.setItem("quai_done", JSON.stringify(done));
+
+loadQuai();
+
+alert("✔ Mise à quai validée");
+}
+
+
+</script>
+
+</body>
+</html>

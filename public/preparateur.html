@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>WMS Préparateur</title>
+
+<style>
+body{font-family:Arial;background:#eef2f5;padding:20px;}
+h1{text-align:center;}
+
+.box{
+  background:white;
+  padding:15px;
+  border-radius:10px;
+  max-width:1000px;
+  margin:auto;
+}
+
+.cmd{
+  padding:10px;
+  margin:10px 0;
+  border:1px solid #ddd;
+  border-radius:8px;
+  cursor:pointer;
+  background:#fff;
+}
+
+.zone{
+  font-size:18px;
+  font-weight:bold;
+  margin:10px 0;
+}
+
+.item{
+  display:flex;
+  justify-content:space-between;
+  padding:10px;
+  border-bottom:1px solid #eee;
+}
+
+.info{font-size:12px;color:#666;}
+
+button{
+  padding:6px 10px;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+}
+
+.read{background:#f39c12;color:white;}
+.valid{background:#2ecc71;color:white;}
+.error{background:#e74c3c;color:white;}
+.restock{background:#e74c3c;color:white;}
+.nav{background:#3498db;color:white;}
+.finish{background:#8e44ad;color:white;}
+.back{background:#e74c3c;color:white;}
+
+.badge{
+  display:inline-block;
+  padding:3px 8px;
+  background:#3498db;
+  color:white;
+  border-radius:6px;
+  font-size:12px;
+}
+.quais{
+  display:flex;
+  gap:15px;
+  align-items:center;
+  font-weight:bold;
+  margin:10px 0;
+}
+.done{
+opacity:0.5;
+background:#dcdcdc;
+}
+.heavy{
+background:#ffcccb;
+border-left:5px solid red;
+}
+.fire{
+color:orange;
+font-weight:bold;
+animation:pulse 1s infinite;
+}
+
+@keyframes pulse{
+0%{opacity:1;}
+50%{opacity:0.4;}
+100%{opacity:1;}
+}
+.heavy{
+background:#ffdddd;
+border-left:5px solid red;
+}
+
+.fire{
+color:red;
+font-weight:bold;
+margin-left:6px;
+animation:pulse 1s infinite;
+}
+
+@keyframes pulse{
+0%{opacity:1;}
+50%{opacity:0.4;}
+100%{opacity:1;}
+}
+
+</style>
+</head>
+
+<body>
+
+<h1>📦 WMS PRÉPARATEUR LOCAL</h1>
+
+<div class="box" id="view"></div>
+
+<script>
+
+/* ======================
+   PRODUITS
+====================== */
+
+const produits=[
+{nom:"Fromages",emp:"15.002"},
+{nom:"Beurre",emp:"15.003"},
+{nom:"Betterave en conserve",emp:"30.001"},
+{nom:"Carotte en conserve",emp:"30.002"},
+{nom:"Panais en conserve",emp:"30.003"},
+{nom:"Céréale",emp:"30.006"},
+{nom:"Sel de Table",emp:"30.007"},
+{nom:"Moulin a poivre",emp:"30.008"},
+{nom:"Chips",emp:"30.009"},
+{nom:"Sucre",emp:"30.010"},
+{nom:"Farine",emp:"30.011"},
+{nom:"Oeuf",emp:"30.012"},
+{nom:"Miel",emp:"31.001"},
+{nom:"Raisin sec",emp:"31.002"},
+{nom:"Chocolat",emp:"31.003"},
+{nom:"Huile de tournesol",emp:"32.001"},
+{nom:"Huile d'olive",emp:"32.002"},
+{nom:"Huile de colza",emp:"32.003"},
+{nom:"Soupe de carotte",emp:"32.004"},
+{nom:"Soupe de betterave",emp:"32.005"},
+{nom:"Soupe Triple",emp:"32.006"},
+{nom:"Soupe de Panais",emp:"32.007"},
+{nom:"Lait",emp:"32.008"},
+{nom:"Jus de raisin",emp:"32.009"},
+{nom:"Soupe de patate",emp:"32.010"},
+{nom:"Canne a sucre",emp:"40.001"},
+{nom:"Tomates",emp:"40.002"},
+{nom:"Laitue",emp:"40.003"}, 
+{nom:"Fraise",emp:"40.005"}, 
+{nom:"Raisin vrac",emp:"40.006"},
+{nom:"Arbre a chat",emp:"46.001"},
+{nom:"Vêtement",emp:"46.002"},
+{nom:"Mobilier",emp:"46.003"},
+{nom:"Rouleau de papier",emp:"46.004"},
+{nom:"Maison à Oiseaux",emp:"46.005"},
+{nom:"Planche",emp:"46.006"},
+{nom:"Gateaux",emp:"45.003"},
+{nom:"Pain",emp:"45.004"},
+];
+
+/* ======================
+   LOCAL STORAGE
+====================== */
+let commandes = JSON.parse(localStorage.getItem("commandes") || "[]");
+
+if(commandes.length === 0){
+commandes = gen();
+save();
+}
+
+/* ======================
+   GENERATION COMMANDES
+====================== */
+
+function gen(){
+
+let cmds=[];
+
+// 🔥 on force 4 commandes lourdes
+let heavyIndex = [0,1,2,3];
+
+for(let c=0;c<12;c++){
+
+let isHeavyCmd = heavyIndex.includes(c);
+
+let items = produits.map(p=>{
+
+let zone = p.emp.split(".")[0];
+let qty;
+
+// 🔥 COMMANDES LOURDES (4 premières)
+if(isHeavyCmd && ["30","32","40","45"].includes(zone)){
+qty = Math.floor(Math.random()*2) + 3; // 3 à 4
+}
+
+// 🔸 COMMANDES NORMALES
+else if(isHeavyCmd && zone === "15"){
+qty = Math.floor(Math.random()*2) + 2; // 2 à 3
+}
+else{
+qty = Math.floor(Math.random()*2) + 1;
+}
+
+return {...p, qty, zone};
+
+});
+
+let prep = ["08","09","10"][Math.floor(Math.random()*3)];
+let dest = ["02","03","04","05","06","07"][Math.floor(Math.random()*6)];
+
+let id = `${dest}-${Math.floor(Math.random()*1000)}`;
+
+cmds.push({
+id,
+prep,
+dest,
+items,
+heavy: isHeavyCmd, // 🔥 FLAG IMPORTANT
+status: "active"
+});
+
+}
+
+return cmds;
+}
+
+/* ======================
+   COMPTEUR
+====================== */
+function getPaletteProgress(c){
+
+let total = 0;
+let done = 0;
+
+// 🔒 sécurité : éviter crash si items n'existe pas
+let items = c?.items || [];
+
+items.forEach(i => {
+
+let qty = parseInt(i.qty) || 0;
+
+total += qty;
+
+if(i.done){
+done += qty;
+}
+
+});
+
+return {
+totalPalettes: total,
+donePalettes: done,
+leftPalettes: total - done
+};
+
+}
+
+
+/* ======================
+   SAVE
+====================== */
+function save(){
+localStorage.setItem("commandes", JSON.stringify(commandes));
+}
+
+/* ======================
+   REGENERATION
+====================== */
+
+function regenCommandes(){
+
+// génération stricte 12 commandes
+commandes = gen();
+
+// force limite 12
+commandes = commandes.slice(0,12);
+
+save();
+
+menu();
+
+alert("✔ 12 nouvelles commandes générées");
+
+}
+	
+
+
+/* ======================
+   MENU
+====================== */
+function menu(){
+
+let v = document.getElementById("view");
+
+v.innerHTML = `
+<h2>📦 Commandes</h2>
+
+<button onclick="regenCommandes()" 
+style="background:#3498db;color:white;padding:10px;border:none;border-radius:6px;margin-bottom:10px;">
+🔄 Générer commandes
+</button>
+`;
+
+// sécurité
+if(!commandes || commandes.length === 0){
+v.innerHTML += "<p>❌ Aucune commande</p>";
+return;
+}
+
+commandes.forEach(c=>{
+
+let p = getPaletteProgress(c); // ✅ UNE SEULE FOIS
+
+let d = document.createElement("div");
+
+let isDone = c.status === "envoyée" || c.status === "terminée";
+
+d.className = "cmd " + (c.heavy ? "heavy" : "") + (isDone ? " done" : "");
+
+d.innerHTML = `
+<span class="badge">Quai ${c.prep}</span><br>
+Commande ${c.id}
+${c.heavy ? "<span class='fire'>🔥 LOURDE</span>" : ""}
+
+<br><br>
+
+📦 Palettes : ${p.donePalettes} / ${p.totalPalettes}
+<br>
+⏳ Restantes : ${p.leftPalettes}
+
+${c.status === "envoyée" ? "<br>🚚 Envoyée" : ""}
+`;
+
+if(c.status !== "envoyée"){
+d.onclick = () => open(c);
+}
+
+v.appendChild(d);
+
+});
+
+}
+
+	
+	
+/* ======================
+   OPEN COMMANDE
+====================== */
+let current=null;
+let zones=[];
+let zi=0;
+
+function open(c){
+
+current = c;
+
+if(!current.start){
+current.start = Date.now();
+}
+
+zones=[...new Set(current.items.map(i=>i.zone))];
+zi=0;
+
+render();
+
+if(!current.start){
+current.start = Date.now();
+}
+
+}
+/* ======================
+   RENDER COMMANDE
+====================== */
+function render(){
+
+let v=document.getElementById("view");
+
+let z = zones[zi];
+let items = (current.items || []).filter(i => i.zone === z);
+
+let done = current.items.filter(i=>i.done).length;
+
+let time = Math.floor((Date.now()-current.start)/1000);
+
+v.innerHTML=`
+<button class="back" onclick="menu()">🏠</button>
+
+<h2>Commande ${current.id}</h2>
+
+⏱ ${time}s<br>
+
+<div class="quais">
+🚚 Prep : ${current.prep} | 📦 Dest : ${current.dest}
+</div>
+
+📊 ${done}/${current.items.length} validés
+
+<br><br>
+
+<button onclick="validerAll()" class="finish">
+✔ Tout valider
+</button>
+
+<button onclick="validerCommande()" class="nav">
+🚚 Envoyer au cariste
+</button>
+`;
+
+items.forEach(i=>{
+
+let d=document.createElement("div");
+d.className="item " + (i.done ? "done" : "");
+
+
+d.innerHTML=`
+<div style="${i.done ? 'opacity:0.5;' : ''}">
+<b>${i.nom}</b><br>
+Demandé : ${i.qty}<br>
+${i.emp}<br>
+
+➜ Pris :
+<input type="number"
+min="0"
+max="${i.qty}"
+value="${i.done ? i.qty : ''}"
+class="take"
+${i.done ? 'disabled' : ''}
+>
+</div>
+
+<div>
+<button class="read">🔊</button>
+<button class="valid">✔</button>
+<button class="restock">🚨</button>
+<button class="error">❌</button>
+</div>
+`;
+
+d.querySelector(".read").onclick=()=>{
+speak(`${i.nom}, ${i.qty}`);
+};
+
+d.querySelector(".valid").onclick = () => {
+
+if(i.done) return;
+
+let input = d.querySelector(".take");
+let taken = input.value === "" ? i.qty : parseInt(input.value);
+
+if(isNaN(taken) || taken <= 0){
+alert("❌ Quantité invalide");
+return;
+}
+
+if(taken > i.qty){
+alert("❌ Trop élevé");
+return;
+}
+
+// stockage du réel pris
+i.taken = taken;
+i.done = true;
+
+input.value = taken;
+input.disabled = true;
+
+d.classList.add("done"); // 👈 GRISAGE VISUEL
+
+};
+
+let input = d.querySelector(".take");
+input.value = i.qty;
+input.disabled = true;
+
+
+
+
+d.querySelector(".error").onclick=()=>sendError(i);
+d.querySelector(".restock").onclick=()=>sendRestock(i);
+
+v.appendChild(d);
+
+});
+
+/* NAV */
+let nav=document.createElement("div");
+nav.innerHTML=`
+<br>
+<button onclick="prev()" class="nav">⬅</button>
+<button onclick="next()" class="nav">➡</button>
+`;
+v.appendChild(nav);
+
+}
+/* ======================
+   NAV ZONE
+====================== */
+function next(){ if(zi<zones.length-1){zi++;render();}}
+function prev(){ if(zi>0){zi--;render();}}
+
+/* ======================
+   VALID ALL
+====================== */
+function validerAll(){
+
+current.items.forEach(i=>i.done=true);
+
+current.status="terminée";
+
+save();
+render();
+
+}
+/* ======================
+   ENVOI CARISTE
+====================== */
+function validerCommande(){
+
+let quai = JSON.parse(localStorage.getItem("quai") || "[]");
+
+quai.push({
+  id: current.id,
+  prep: current.prep,
+  dest: current.dest,
+  items: current.items // important si tu veux tout envoyer
+});
+
+localStorage.setItem("quai", JSON.stringify(quai));
+
+current.status = "envoyée";
+
+save();
+
+alert("🚚 Envoyé au cariste");
+
+menu();
+}
+
+
+/* ======================
+   ERREUR
+====================== */
+function sendError(i){
+
+let errors = JSON.parse(localStorage.getItem("errors") || "[]");
+
+errors.push({
+  prod: i.nom,
+  emp: i.emp,
+  zone: i.zone
+});
+
+localStorage.setItem("errors", JSON.stringify(errors));
+
+alert("❌ Erreur envoyée");
+
+}
+
+/* ======================
+   REAPPRO
+====================== */
+function sendRestock(i){
+
+let restock = JSON.parse(localStorage.getItem("restock") || "[]");
+
+restock.push({
+  prod: i.nom,
+  emp: i.emp,
+  zone: i.zone,
+  qty: i.qty
+});
+
+localStorage.setItem("restock", JSON.stringify(restock));
+
+alert("🚨 Réappro demandé");
+
+}
+
+
+/* ======================
+   START
+====================== */
+menu();
+
+</script>
+
+</body>
+</html>
