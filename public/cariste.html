@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>WMS Cariste</title>
+<title>WMS CARISTE CLEAN</title>
 
 <style>
 body{
@@ -17,13 +17,13 @@ h1{text-align:center;}
 .tabs{
   display:flex;
   justify-content:center;
+  gap:10px;
   margin-bottom:20px;
 }
 
 .tab{
   background:#444;
   padding:10px 15px;
-  margin:5px;
   border-radius:6px;
   cursor:pointer;
 }
@@ -38,18 +38,6 @@ h1{text-align:center;}
   margin:10px 0;
   padding:12px;
   border-radius:8px;
-}
-
-.zone{
-  font-weight:bold;
-  color:#f39c12;
-}
-
-.badge{
-  background:#e74c3c;
-  padding:2px 6px;
-  border-radius:6px;
-  font-size:12px;
 }
 
 input{
@@ -67,67 +55,7 @@ button{
 }
 
 .valid{background:#27ae60;color:white;}
-.stock{background:#3498db;color:white;}
 .clear{background:#e74c3c;color:white;}
-
-.tabs{
-  display:flex;
-  gap:10px;
-  margin-bottom:15px;
-}
-
-.tab{
-  padding:10px;
-  background:#444;
-  color:white;
-  border:none;
-  border-radius:6px;
-  cursor:pointer;
-}
-
-.active{background:#3498db;}
-
-.task{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  background:#2c2c3c;
-  margin:8px 0;
-  padding:10px;
-  border-radius:8px;
-  gap:10px;
-}
-
-.task b{
-  min-width:180px;
-}
-
-.task .stock{
-  display:flex;
-  gap:15px;
-  align-items:center;
-}
-
-input{
-  width:70px;
-  padding:5px;
-  border-radius:5px;
-  border:none;
-  text-align:center;
-}
-
-button{
-  padding:6px 10px;
-  border:none;
-  border-radius:6px;
-  cursor:pointer;
-}
-.clear{
-  background:#e74c3c;
-  color:white;
-}
-
-
 </style>
 </head>
 
@@ -136,272 +64,176 @@ button{
 <h1>🚜 WMS CARISTE</h1>
 
 <div class="tabs">
-
-	<div class="tab active" onclick="show('restock',event)">🚨 Réappro</div>
-	<div class="tab" onclick="show('stock',event)">📦 Stock</div>
-	<div class="tab" onclick="show('errors',event)">❌ Erreurs</div>
-	<div class="tab" onclick="show('quai',event)">🚚 Mise à quai</div>
-	
-	<div id="rack" style="display:none;"></div>
-	<div id="pick" style="display:none;"></div>
-
-
-
+  <div class="tab active" onclick="show('restock',event)">🚨 Réappro</div>
+  <div class="tab" onclick="show('stock',event)">📦 Stock</div>
+  <div class="tab" onclick="show('quai',event)">🚚 Quai</div>
+  <div class="tab" onclick="show('errors',event)">❌ Erreurs</div>
 </div>
 
-<!-- sections -->
 <div id="restock" class="section show"></div>
 <div id="stock" class="section"></div>
 <div id="quai" class="section"></div>
 <div id="errors" class="section"></div>
 
-</div>
-
-
-
-<script src="stock.js"></script>
-
 <script>
 
-const API = "http://192.168.1.46:3000"; // ton serveur
-
+const API = "http://192.168.1.46:3000";
 
 /* =========================
-   PRODUITS (ton base)
+   PRODUITS
 ========================= */
 const produits=[
-{nom:"Fromages",emp:"15.002",zone:"15"},
-{nom:"Beurre",emp:"15.003",zone:"15"},
-{nom:"Betterave en conserve",emp:"30.001",zone:"30"},
-{nom:"Carotte en conserve",emp:"30.002",zone:"30"},
-{nom:"Panais en conserve",emp:"30.003",zone:"30"},
-{nom:"Céréale",emp:"30.006",zone:"30"},
-{nom:"Sel de Table",emp:"30.007",zone:"30"},
-{nom:"Moulin a poivre",emp:"30.008",zone:"30"},
-{nom:"Chips",emp:"30.009",zone:"30"},
-{nom:"Sucre",emp:"30.010",zone:"30"},
-{nom:"Farine",emp:"30.011",zone:"30"},
-{nom:"Oeuf",emp:"30.012",zone:"30"},
-{nom:"Miel",emp:"31.001",zone:"31"},
-{nom:"Raisin sec",emp:"31.002",zone:"31"},
-{nom:"Chocolat",emp:"31.003",zone:"31"},
-{nom:"Huile de tournesol",emp:"32.001",zone:"32"},
-{nom:"Huile d'olive",emp:"32.002",zone:"32"},
-{nom:"Huile de colza",emp:"32.003",zone:"32"},
-{nom:"Soupe de carotte",emp:"32.004",zone:"32"},
-{nom:"Soupe de betterave",emp:"32.005",zone:"32"},
-{nom:"Soupe Triple",emp:"32.006",zone:"32"},
-{nom:"Soupe de Panais",emp:"32.007",zone:"32"},
-{nom:"Lait",emp:"32.008",zone:"32"},
-{nom:"Jus de raisin",emp:"32.009",zone:"32"},
-{nom:"Soupe de patate",emp:"32.010",zone:"32"},
-{nom:"Canne a sucre",emp:"40.001",zone:"40"},
-{nom:"Tomates",emp:"40.002",zone:"40"},
-{nom:"Laitue",emp:"40.003",zone:"40"}, 
-{nom:"Fraise",emp:"40.005",zone:"40"}, 
-{nom:"Raisin vrac",emp:"40.006",zone:"40"},
-{nom:"Arbre a chat",emp:"46.001",zone:"46"},
-{nom:"Vêtement",emp:"46.002",zone:"46"},
-{nom:"Mobilier",emp:"46.003",zone:"46"},
-{nom:"Rouleau de papier",emp:"46.004",zone:"46"},
-{nom:"Maison à Oiseaux",emp:"46.005",zone:"46"},
-{nom:"Planche",emp:"46.006",zone:"46"},
-{nom:"Gateaux",emp:"45.003",zone:"45"},
-{nom:"Pain",emp:"45.004",zone:"45"}, 
+{nom:"Fromages",emp:"15.002"},
+{nom:"Beurre",emp:"15.003"},
+{nom:"Betterave en conserve",emp:"30.001"},
+{nom:"Carotte en conserve",emp:"30.002"},
+{nom:"Panais en conserve",emp:"30.003"},
+{nom:"Céréale",emp:"30.006"},
+{nom:"Sel de Table",emp:"30.007"},
+{nom:"Moulin a poivre",emp:"30.008"},
+{nom:"Chips",emp:"30.009"},
+{nom:"Sucre",emp:"30.010"},
+{nom:"Farine",emp:"30.011"},
+{nom:"Oeuf",emp:"30.012"},
+{nom:"Miel",emp:"31.001"},
+{nom:"Raisin sec",emp:"31.002"},
+{nom:"Chocolat",emp:"31.003"},
+{nom:"Huile de tournesol",emp:"32.001"},
+{nom:"Huile d'olive",emp:"32.002"},
+{nom:"Huile de colza",emp:"32.003"},
+{nom:"Soupe de carotte",emp:"32.004"},
+{nom:"Soupe de betterave",emp:"32.005"},
+{nom:"Soupe Triple",emp:"32.006"},
+{nom:"Soupe de Panais",emp:"32.007"},
+{nom:"Lait",emp:"32.008"},
+{nom:"Jus de raisin",emp:"32.009"},
+{nom:"Soupe de patate",emp:"32.010"},
+{nom:"Canne a sucre",emp:"40.001"},
+{nom:"Tomates",emp:"40.002"},
+{nom:"Laitue",emp:"40.003"}, 
+{nom:"Fraise",emp:"40.005"}, 
+{nom:"Raisin vrac",emp:"40.006"},
+{nom:"Arbre a chat",emp:"46.001"},
+{nom:"Vêtement",emp:"46.002"},
+{nom:"Mobilier",emp:"46.003"},
+{nom:"Rouleau de papier",emp:"46.004"},
+{nom:"Maison à Oiseaux",emp:"46.005"},
+{nom:"Planche",emp:"46.006"},
+{nom:"Gateaux",emp:"45.003"},
+{nom:"Pain",emp:"45.004"},
 ];
 
-/* TAB */
+/* =========================
+   NAVIGATION
+========================= */
 function show(id,e){
 
 document.querySelectorAll(".section").forEach(s=>s.classList.remove("show"));
-
-let el = document.getElementById(id);
-if(el) el.classList.add("show");
+document.getElementById(id).classList.add("show");
 
 document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
 if(e) e.target.classList.add("active");
 
-/* reload safe */
-if(id === "stock") loadStockView?.();
-if(id === "quai") loadQuai?.();
-if(id === "restock") loadRestock?.();
-if(id === "errors") loadErrors?.();
-
+if(id==="stock") loadStock();
+if(id==="restock") loadRestock();
+if(id==="quai") loadQuai();
+if(id==="errors") loadErrors();
 }
 
-
-
-async function valider(i){
+/* =========================
+   REAPPRO
+========================= */
+async function loadRestock(){
 
 let r = await (await fetch(API+"/restock")).json();
 
-let item = r[i];
-if(!item){
-alert("Réappro introuvable");
+let div = document.getElementById("restock");
+div.innerHTML="";
+
+if(!r.length){
+div.innerHTML="✔ Aucun réappro";
 return;
 }
 
-let q = parseInt(document.getElementById("q"+i)?.value || item.qty);
+r.forEach((x,i)=>{
 
-if(isNaN(q) || q <= 0){
-alert("Quantité invalide");
-return;
-}
+div.innerHTML += `
+<div class="task">
+<b>${x.prod}</b> (${x.emp})<br>
+📦 ${x.qty}<br>
 
-/* STOCK SERVER */
-let stock = await (await fetch(API+"/stock")).json();
+<input id="q${i}" type="number" value="${x.qty}">
+<button class="valid" onclick="valider(${i})">✔</button>
+</div>
+`;
 
-let emp = String(item.emp).split(" ")[0].trim();
-
-if(!stock[emp]){
-stock[emp] = {rack:0, pick:0};
-}
-
-/* mouvement stock */
-stock[emp].pick = (stock[emp].pick || 0) + q;
-stock[emp].rack = Math.max(0, (stock[emp].rack || 0) - q);
-
-/* SAVE STOCK */
-await fetch(API+"/stock", {
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body: JSON.stringify(stock)
 });
 
-/* REMOVE RESTOCK */
-r.splice(i,1);
+}
 
-await fetch(API+"/restock", {
+/* =========================
+   VALID REAPPRO (SERVER)
+========================= */
+async function valider(i){
+
+let r = await (await fetch(API+"/restock")).json();
+let item = r[i];
+if(!item) return;
+
+let q = parseInt(document.getElementById("q"+i).value)||0;
+
+/* stock */
+let stock = await (await fetch(API+"/stock")).json();
+
+if(!stock[item.emp]) stock[item.emp]={rack:0,pick:0};
+
+stock[item.emp].pick += q;
+stock[item.emp].rack = Math.max(0, stock[item.emp].rack - q);
+
+/* save stock */
+await fetch(API+"/stock",{
 method:"POST",
 headers:{"Content-Type":"application/json"},
-body: JSON.stringify(r)
+body:JSON.stringify(stock)
+});
+
+/* remove restock */
+r.splice(i,1);
+
+await fetch(API+"/restock",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify(r)
 });
 
 loadRestock();
-
-alert("✔ Réappro validé");
-
 }
-
-/*------------------------------------------------------------------------------*/
 
 /* =========================
    STOCK
 ========================= */
-function getColor(val){
+async function loadStock(){
 
-if(val <= 0) return "🔴";
-if(val <= 4) return "🟠";
-if(val >= 5) return "🟢";
-} 
-
-function loadStock(){
-
-let stock = JSON.parse(localStorage.getItem("stock")||"{}");
-
-let rackDiv = document.getElementById("rack");
-let pickDiv = document.getElementById("pick");
-
-rackDiv.innerHTML="";
-pickDiv.innerHTML="";
-
-produits.forEach(p=>{
-
-// 🔥 SAFE STOCK (IMPORTANT)
-let s = stock[p.emp] || {rack:0,pick:0};
-
-let rack = s.rack ?? 0;
-let pick = s.pick ?? 0;
-
-// ===== RACK =====
-rackDiv.innerHTML += `
-<div class="task">
-  <b>${getColor(rack)} ${p.nom}</b> (${p.emp})
-  
-  🏭 Rack :
-  <input type="number" value="${rack}"
-  onchange="update('${p.emp}','rack',this.value)">
-  
-  <button onclick="validate('${p.emp}')">✔</button>
-</div>
-`;
-
-// ===== PICK =====
-pickDiv.innerHTML += `
-<div class="task">
-  <b>${getColor(pick)} ${p.nom}</b> (${p.emp})
-  
-  📦 Pick :
-  <input type="number" value="${pick}"
-  onchange="update('${p.emp}','pick',this.value)">
-  
-  <button onclick="validate('${p.emp}')">✔</button>
-</div>
-`;
-
-});
-
-}
-
-/*-------*/
-
-function loadStockView(){
-
-let stock = JSON.parse(localStorage.getItem("stock")||"{}");
+let stock = await (await fetch(API+"/stock")).json();
 
 let div = document.getElementById("stock");
-
-div.innerHTML = `
-<h2>📦 Stock global</h2>
-
-<button onclick="toggleDetail('rack')">🏭 Rack</button>
-<button onclick="toggleDetail('pick')">📍 Emplacement</button>
-
-<div id="detail"></div>
-`;
-
-renderStock("rack");
-
-}
-
-/*-------*/
-
-function toggleDetail(type){
-renderStock(type);
-}
-
-/*-------*/
-
-function renderStock(type){
-
-let stock = JSON.parse(localStorage.getItem("stock")||"{}");
-
-let div = document.getElementById("detail");
-div.innerHTML="";
+div.innerHTML="<h2>📦 STOCK</h2>";
 
 produits.forEach(p=>{
 
-let s = stock[p.emp] || {rack:0,pick:0};
-
-let value = type === "rack" ? s.rack : s.pick;
+let s = stock[p.emp]||{rack:0,pick:0};
 
 div.innerHTML += `
 <div class="task">
+<b>${p.nom}</b> (${p.emp})<br>
 
-  <b>${p.nom}</b> (${p.emp})
+🏭 Rack:
+<input type="number" value="${s.rack}"
+onchange="updateStock('${p.emp}','rack',this.value)">
 
-  <div class="stock">
-
-    <span>${type === "rack" ? "🏭" : "📦"}</span>
-
-    <input type="number"
-      value="${value}"
-      onchange="update('${p.emp}','${type}',this.value)">
-
-    <button onclick="validate('${p.emp}')">✔</button>
-
-  </div>
-
+📦 Pick:
+<input type="number" value="${s.pick}"
+onchange="updateStock('${p.emp}','pick',this.value)">
 </div>
 `;
 
@@ -409,236 +241,125 @@ div.innerHTML += `
 
 }
 
+/* =========================
+   UPDATE STOCK
+========================= */
+async function updateStock(emp,type,value){
 
+let stock = await (await fetch(API+"/stock")).json();
 
-/*-------*/
-function showTab(id){
+if(!stock[emp]) stock[emp]={rack:0,pick:0};
 
-document.querySelectorAll(".section").forEach(s=>s.classList.remove("show"));
-document.getElementById(id).classList.add("show");
+stock[emp][type]=parseInt(value)||0;
 
-document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
-event.target.classList.add("active");
-
-}
-
-/*-------*/
-function validate(emp){
-
-let stock = JSON.parse(localStorage.getItem("stock")||"{}");
-
-let rack = document.querySelector(`#detail input[onchange*="${emp}"]`);
-
-if(!stock[emp]) stock[emp] = {rack:0,pick:0};
-
-/* mise à jour directe */
-stock[emp].rack = parseInt(stock[emp].rack || 0);
-stock[emp].pick = parseInt(stock[emp].pick || 0);
-
-localStorage.setItem("stock",JSON.stringify(stock));
-
-loadStockView();
-}
-
-/*-------*/
-
-function show(id,e){
-
-document.querySelectorAll(".section").forEach(s=>s.classList.remove("show"));
-document.getElementById(id).classList.add("show");
-
-document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
-e.target.classList.add("active");
-
-/* 👉 si stock ouvert */
-if(id === "stock"){
-loadStockView();
-}
+await fetch(API+"/stock",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify(stock)
+});
 
 }
-
-/*------------------------------------------------------------------------------*/
 
 /* =========================
-   ERREURS PREPA (LOAD SERVER)
+   QUAI
 ========================= */
+async function loadQuai(){
 
+let q = await (await fetch(API+"/quai")).json();
+
+let div = document.getElementById("quai");
+div.innerHTML="";
+
+if(!q.length){
+div.innerHTML="✔ Aucun quai";
+return;
+}
+
+q.forEach((x,i)=>{
+
+div.innerHTML += `
+<div class="task">
+<b>Commande ${x.id}</b><br>
+🏭 ${x.prep} → 🚚 ${x.dest}
+<br><br>
+<button onclick="validerQuai(${i})">✔</button>
+<button onclick="supprimerQuai(${i})">❌</button>
+</div>
+`;
+
+});
+
+}
+
+/* =========================
+   QUAI VALID
+========================= */
+async function validerQuai(i){
+
+let q = await (await fetch(API+"/quai")).json();
+
+q.splice(i,1);
+
+await fetch(API+"/quai",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify(q)
+});
+
+loadQuai();
+
+}
+
+/* =========================
+   QUAI DELETE
+========================= */
+async function supprimerQuai(i){
+
+let q = await (await fetch(API+"/quai")).json();
+
+q.splice(i,1);
+
+await fetch(API+"/quai",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify(q)
+});
+
+loadQuai();
+
+}
+
+/* =========================
+   ERREURS
+========================= */
 async function loadErrors(){
 
 let e = await (await fetch(API+"/errors")).json();
 
 let div = document.getElementById("errors");
-div.innerHTML = "";
+div.innerHTML="";
 
-if(!e || e.length === 0){
-div.innerHTML = "✔ Aucune erreur";
+if(!e.length){
+div.innerHTML="✔ Aucune erreur";
 return;
 }
 
 e.forEach(x=>{
 
-let d = document.createElement("div");
-d.className = "task";
-
-d.innerHTML = `
-❌ <b>${x.prod}</b><br>
+div.innerHTML += `
+<div class="task">
+❌ ${x.prod}<br>
 📦 ${x.emp}<br>
-📍 Zone ${x.zone || "?"}<br>
-⚠ ${x.type || "non défini"}<br>
-`;
-
-div.appendChild(d);
-
-});
-
-}
-
-/* =========================
-   ENVOYER ERREUR (SERVER)
-========================= */
-
-async function sendError(i){
-
-let type = prompt("Type d'erreur ?");
-
-if(!type) type = "non défini";
-
-/* récupération serveur */
-let e = await (await fetch(API+"/errors")).json();
-
-/* ajout erreur */
-e.push({
-prod: i.nom,
-emp: i.emp,
-zone: i.zone,
-type: type,
-time: Date.now()
-});
-
-/* sauvegarde serveur */
-await fetch(API+"/errors", {
-method: "POST",
-headers: {"Content-Type":"application/json"},
-body: JSON.stringify(e)
-});
-
-alert("❌ Erreur envoyée");
-
-}
-
-/* =========================
-   AUTO REFRESH
-========================= */
-
-setInterval(()=>{
-loadErrors();
-}, 5000);
-
-/* =========================
-   INIT
-========================= */
-
-loadErrors();
-
-
-/*------------------------------------------------------------------------------*/
-
-/* =========================
-   REFRESH
-========================= */
-
-function refresh(){
-
-try{ loadRestock(); }catch(e){ console.log(e); }
-try{ loadStock(); }catch(e){ console.log(e); }
-try{ loadErrors(); }catch(e){ console.log(e); }
-try{ loadQuai(); }catch(e){ console.log(e); }
-
-
-
-}
-
-refresh();
-setInterval(refresh,2000);
-
-/*------------------------------------------------------------------------------*/
-
-/* =========================
-   MAJ STOCK (AJOUT / RETRAIT)
-========================= */
-
-async function mod(emp,type,val){
-
-let stock = await (await fetch(API+"/stock")).json();
-
-if(!stock[emp]){
-stock[emp] = {rack:0,pick:0};
-}
-
-stock[emp][type] = (stock[emp][type] || 0) + val;
-
-/* sécurité */
-if(stock[emp][type] < 0){
-stock[emp][type] = 0;
-}
-
-/* SAVE SERVEUR */
-await fetch(API+"/stock", {
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body: JSON.stringify(stock)
-});
-
-loadStock();
-
-}
-
-/*------------------------------------------------------------------------------*/
-
-/* =========================
-   MISE À QUAI (LOAD SERVER)
-========================= */
-
-async function loadQuai(){
-
-let data = await (await fetch(API+"/quai")).json();
-
-let div = document.getElementById("quai");
-div.innerHTML = "";
-
-if(!data || data.length === 0){
-div.innerHTML = "✔ Aucune mission mise à quai";
-return;
-}
-
-data.forEach((q,i)=>{
-
-let prep = q.prep ?? q.quaiPrep ?? "non défini";
-let dest = q.dest ?? q.quaiLivraison ?? "non défini";
-
-let d = document.createElement("div");
-d.className = "task";
-
-d.innerHTML = `
-<div>
-<b>Commande ${q.id ?? "?"}</b><br>
-🏭 Prep : ${prep}<br>
-🚚 Dest : ${dest}
-</div>
-
-<div>
-<button class="valid" onclick="validerQuai(${i})">✔ Valider quai</button>
-<button class="clear" onclick="supprimerQuai(${i})">❌ Annuler</button>
+⚠ ${x.type}
 </div>
 `;
 
-div.appendChild(d);
-
 });
 
 }
 
-/*------------------------------------------------------------------------------*/
+/* INIT */
+loadRestock();
 
 </script>
 
