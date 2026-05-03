@@ -1,41 +1,54 @@
 const express = require("express");
 const fs = require("fs");
-
 const app = express();
+
 app.use(express.json());
+app.use(express.static("public"));
 
-const FILE = "stock.json";
+const DB = "data.json";
 
-/* INIT fichier si absent */
-if (!fs.existsSync(FILE)) {
-  fs.writeFileSync(FILE, "{}");
-}
-
-/* GET stock */
-app.get("/stock", (req, res) => {
-  const data = fs.readFileSync(FILE);
-  res.json(JSON.parse(data));
+/* ================= STOCK ================= */
+app.get("/stock", (req,res)=>{
+  const data = JSON.parse(fs.readFileSync(DB));
+  res.json(data.stock || {});
 });
 
-/* SAVE stock */
-app.post("/stock", (req, res) => {
-  fs.writeFileSync(FILE, JSON.stringify(req.body, null, 2));
+app.post("/stock", (req,res)=>{
+  const data = JSON.parse(fs.readFileSync(DB));
+  data.stock = req.body;
+  fs.writeFileSync(DB, JSON.stringify(data,null,2));
   res.json({ok:true});
 });
 
-app.listen(process.env.PORT || 3000, () => {
-  console.log("Serveur WMS lancé");
+/* ================= QUAI ================= */
+app.get("/quai", (req,res)=>{
+  const data = JSON.parse(fs.readFileSync(DB));
+  res.json(data.quai || []);
 });
-
-app.get("/", (req, res) => {
-  res.json({
-    status: "OK",
-    message: "WMS server actif"
-  });
-});
-app.use(express.json());
 
 app.post("/quai", (req,res)=>{
-  console.log(req.body);
-  res.sendStatus(200);
+  const data = JSON.parse(fs.readFileSync(DB));
+  data.quai.push(req.body);
+  fs.writeFileSync(DB, JSON.stringify(data,null,2));
+  res.json({ok:true});
+});
+
+/* ================= RESTOCK ================= */
+app.post("/restock", (req,res)=>{
+  const data = JSON.parse(fs.readFileSync(DB));
+  data.restock.push(req.body);
+  fs.writeFileSync(DB, JSON.stringify(data,null,2));
+  res.json({ok:true});
+});
+
+/* ================= ERRORS ================= */
+app.post("/error", (req,res)=>{
+  const data = JSON.parse(fs.readFileSync(DB));
+  data.errors.push(req.body);
+  fs.writeFileSync(DB, JSON.stringify(data,null,2));
+  res.json({ok:true});
+});
+
+app.listen(3000, ()=>{
+  console.log("WMS server running");
 });
