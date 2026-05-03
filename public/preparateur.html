@@ -338,9 +338,12 @@ let items=(current.items||[]).filter(i=>i.zone===z);
 let done=current.items.filter(i=>i.done).length;
 
 v.innerHTML=`
-<button class="back" onclick="menu()">🏠</button>
-<h2>${current.id}</h2>
-📊 ${done}/${current.items.length}
+<div>
+<button onclick="valid(i)">✔</button>
+<button onclick="err(i)">❌</button>
+<button onclick="restock(i)">🚨 Réapro</button>
+</div>
+
 `;
 
 items.forEach(i=>{
@@ -422,32 +425,34 @@ alert("Erreur serveur");
 /* ======================
    REAPRO
 ====================== */
-async function sendRestock(i){
+async function restock(i){
 
-let data = {
+let demande = {
   prod: i.nom,
   emp: i.emp,
   zone: i.zone,
   qty: i.qty,
+  from: "preparateur",
   time: Date.now()
 };
 
 try{
 
-await fetch("http://TON_SERVEUR:3000/restock", {
-  method: "POST",
-  headers: {"Content-Type":"application/json"},
-  body: JSON.stringify(data)
+await fetch(API + "/restock", {
+  method:"POST",
+  headers:{"Content-Type":"application/json"},
+  body:JSON.stringify(demande)
 });
 
-alert("🚨 Réappro demandé");
+alert("🚨 Demande de réappro envoyée au cariste");
 
 }catch(e){
 console.error(e);
-alert("Erreur serveur");
+alert("Erreur serveur réappro");
 }
 
 }
+
 
 </script>
 
