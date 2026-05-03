@@ -6,7 +6,7 @@ app.use(express.json());
 app.use(express.static("public")); // 👈 TRÈS IMPORTANT
 
 app.get("/", (req,res)=>{
-  res.sendFile(path.join(__dirname, "public", "WMS Préparateur.html"));
+  res.sendFile(path.join(__dirname, "public", "public/WMS Acceuil.html"));
 });
 
 const PORT = process.env.PORT || 3000;
