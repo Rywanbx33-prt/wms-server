@@ -112,21 +112,26 @@ animation:pulse 1s infinite;
 
 <body>
 
-<h1>📦 WMS PRÉPARATEUR LOCAL</h1>
+<h1>👷 WMS Préparateur</h1>
 
 <div class="box" id="view"></div>
 
-<script>
-async function loadStockServer(){
-  try {
-    let res = await fetch("/stock");
-    stock = await res.json();
-  } catch(e){
-    console.error("Stock error", e);
-    stock = {};
-  }
-}
+<script src="stock.js"></script>
 
+<script>
+console.log("WMS PRO OK");
+
+const API = "http://TON_IP:3000";
+	
+
+/* ======================
+   VOCAL
+====================== */
+function speak(t){
+let m=new SpeechSynthesisUtterance(t);
+m.lang="fr-FR";
+speechSynthesis.speak(m);
+}
 /* ======================
    PRODUITS
 ====================== */
@@ -173,17 +178,37 @@ const produits=[
 ];
 
 /* ======================
-   LOCAL STORAGE
+   INIT
 ====================== */
-let commandes = JSON.parse(localStorage.getItem("commandes") || "[]");
+let commandes = [];
 
-if(commandes.length === 0){
+async function loadCommandes(){
+
+let res = await fetch("http://IP_SERVEUR:3000/commandes");
+commandes = await res.json();
+
+menu();
+
+}
+
+// 🔥 si vide OU pas 12 → reset
+if(commandes.length !== 12){
 commandes = gen();
 save();
 }
 
 /* ======================
-   GENERATION COMMANDES
+   SAVE
+====================== */
+function save(){
+await fetch("http://TON_SERVEUR:3000/commandes", {
+  method: "POST",
+  headers: {"Content-Type":"application/json"},
+  body: JSON.stringify(commandes)
+});}
+
+/* ======================
+   GENERATION
 ====================== */
 
 function gen(){
@@ -240,23 +265,18 @@ return cmds;
 
 /* ======================
    COMPTEUR
-====================== */
+=======================*/
 function getPaletteProgress(c){
 
 let total = 0;
 let done = 0;
 
-// 🔒 sécurité : éviter crash si items n'existe pas
-let items = c?.items || [];
+c.items.forEach(i=>{
 
-items.forEach(i => {
-
-let qty = parseInt(i.qty) || 0;
-
-total += qty;
+total += i.qty;
 
 if(i.done){
-done += qty;
+done += i.qty;
 }
 
 });
@@ -270,12 +290,6 @@ leftPalettes: total - done
 }
 
 
-/* ======================
-   SAVE
-====================== */
-function save(){
-localStorage.setItem("commandes", JSON.stringify(commandes));
-}
 
 /* ======================
    REGENERATION
@@ -297,6 +311,7 @@ alert("✔ 12 nouvelles commandes générées");
 
 }
 	
+
 
 
 /* ======================
@@ -327,9 +342,7 @@ let p = getPaletteProgress(c); // ✅ UNE SEULE FOIS
 
 let d = document.createElement("div");
 
-let isDone = c.status === "envoyée" || c.status === "terminée";
-
-d.className = "cmd " + (c.heavy ? "heavy" : "") + (isDone ? " done" : "");
+d.className = "cmd " + (c.heavy ? "heavy" : "");
 
 d.innerHTML = `
 <span class="badge">Quai ${c.prep}</span><br>
@@ -356,9 +369,8 @@ v.appendChild(d);
 }
 
 	
-	
 /* ======================
-   OPEN COMMANDE
+   OPEN
 ====================== */
 let current=null;
 let zones=[];
@@ -383,14 +395,14 @@ current.start = Date.now();
 
 }
 /* ======================
-   RENDER COMMANDE
+   RENDER
 ====================== */
 function render(){
 
 let v=document.getElementById("view");
 
 let z = zones[zi];
-let items = (current.items || []).filter(i => i.zone === z);
+let items = current.items.filter(i=>i.zone===z);
 
 let done = current.items.filter(i=>i.done).length;
 
@@ -480,14 +492,20 @@ input.disabled = true;
 
 d.classList.add("done"); // 👈 GRISAGE VISUEL
 
+
+
 };
+
+
 
 let input = d.querySelector(".take");
 input.value = i.qty;
 input.disabled = true;
 
+save();
+render();
 
-
+};
 
 d.querySelector(".error").onclick=()=>sendError(i);
 d.querySelector(".restock").onclick=()=>sendRestock(i);
@@ -506,6 +524,7 @@ nav.innerHTML=`
 v.appendChild(nav);
 
 }
+
 /* ======================
    NAV ZONE
 ====================== */
@@ -525,62 +544,55 @@ save();
 render();
 
 }
+
 /* ======================
    ENVOI CARISTE
 ====================== */
-async function validerCommande(){
+function validerCommande(){
 
-  try {
+await fetch("http://TON_SERVEUR:3000/quai", {
+  method: "POST",
+  headers: {"Content-Type":"application/json"},
+  body: JSON.stringify(quai)
+  
+quai.push({
+id: current.id,
+prep: current.prep,
+dest: current.dest
+});
 
-    await fetch("/quai", {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({
-        id: current.id,
-        prep: current.prep,
-        dest: current.dest,
-        items: current.items
-      })
-    });
+await fetch("http://TON_SERVEUR:3000/quai", {
+  method: "POST",
+  headers: {"Content-Type":"application/json"},
+  body: JSON.stringify(quai)
+});
+current.status="envoyée";
 
-    current.status = "envoyée";
-    save();
+save();
 
-    alert("🚚 Envoyé au cariste");
+alert("🚚 Envoyé au cariste");
 
-    menu();
-
-  } catch (err) {
-    console.error("Erreur quai:", err);
-    alert("❌ Erreur serveur");
-  }
-
+menu();
 }
-
 
 /* ======================
    ERREUR
 ====================== */
 async function sendError(i){
 
-  try {
+let data = {
+  prod: i.nom,
+  emp: i.emp,
+  time: Date.now()
+};
 
-    await fetch("/error", {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({
-        prod: i.nom,
-        emp: i.emp,
-        zone: i.zone
-      })
-    });
+await fetch("http://TON_SERVEUR:3000/errors", {
+  method: "POST",
+  headers: {"Content-Type":"application/json"},
+  body: JSON.stringify(data)
+});
 
-    alert("❌ Erreur envoyée au serveur");
-
-  } catch (err) {
-    console.error("Erreur error:", err);
-    alert("❌ Erreur serveur");
-  }
+alert("❌ Erreur envoyée");
 
 }
 
@@ -588,40 +600,26 @@ async function sendError(i){
 /* ======================
    REAPPRO
 ====================== */
-async function sendRestock(i){
+function sendRestock(i){
 
-  try {
-
-    await fetch("/restock", {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({
-        prod: i.nom,
-        emp: i.emp,
-        zone: i.zone,
-        qty: i.qty
-      })
-    });
-
-    alert("🚨 Réappro envoyé au serveur");
-
-  } catch (err) {
-    console.error("Erreur restock:", err);
-    alert("❌ Erreur envoi serveur");
-  }
-
-}
-
-/* ======================
-   MODIF STOCK
-====================== */
-let stock = await fetch("/stock").then(r=>r.json());
-await fetch("/stock", {
-  method:"POST",
-  headers:{"Content-Type":"application/json"},
-  body: JSON.stringify(stock)
+await fetch("http://TON_SERVEUR:3000/restock", {
+  method: "POST",
+  headers: {"Content-Type":"application/json"},
+  body: JSON.stringify(restock)
+});
+r.push({
+prod:i.nom,
+emp:i.emp
 });
 
+await fetch("http://TON_SERVEUR:3000/restock", {
+  method: "POST",
+  headers: {"Content-Type":"application/json"},
+  body: JSON.stringify(restock)
+});
+alert("🚨 Réappro demandé");
+
+}
 
 /* ======================
    START
