@@ -764,39 +764,36 @@ setInterval(() => {
 /* =========================
    Mise a quai
 ========================= */
-function loadQuai(){
+async function loadQuai(){
 
-let res = await fetch("/quai");
-let data = await res.json();
+  let res = await fetch("/quai");
+  let data = await res.json();
 
-let div = document.getElementById("quai");
-div.innerHTML = "";
+  let div = document.getElementById("quai");
+  div.innerHTML = "";
 
-if(data.length === 0){
-div.innerHTML = "✔ Aucune mission mise à quai";
-return;
+  if(data.length === 0){
+    div.innerHTML = "✔ Aucune mission";
+    return;
+  }
+
+  data.forEach((q,i)=>{
+
+    let d = document.createElement("div");
+    d.className = "task";
+
+    d.innerHTML = `
+      <b>Commande ${q.id}</b><br>
+      🏭 ${q.prep} → 🚚 ${q.dest}
+      <br><br>
+      <button onclick="validerQuai(${i})">✔</button>
+      <button onclick="supprimerQuai(${i})">❌</button>
+    `;
+
+    div.appendChild(d);
+  });
 }
 
-data.forEach((q,i)=>{
-
-let prep = q.prep ?? q.quaiPrep ?? "non défini";
-let dest = q.dest ?? q.quaiLivraison ?? "non défini";
-
-let d = document.createElement("div");
-d.className = "task";
-
-d.innerHTML = `
-<div>
-<b>Commande ${q.id ?? "?"}</b><br>
-🏭 Prep : ${prep}<br>
-🚚 Dest : ${dest}
-</div>
-
-<div>
-<button class="valid" onclick="validerQuai(${i})">✔ Valider quai</button>
-<button class="clear" onclick="supprimerQuai(${i})">❌ Annuler</button>
-</div>
-`;
 
 
 div.appendChild(d);
