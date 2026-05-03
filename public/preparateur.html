@@ -2,166 +2,131 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>WMS Préparateur</title>
+<title>WMS Préparateur PRO</title>
 
 <style>
-body{font-family:Arial;background:#eef2f5;padding:20px;}
+body{
+font-family:Arial;
+background:#eef2f5;
+margin:0;
+padding:20px;
+}
+
 h1{text-align:center;}
 
 .box{
-  background:white;
-  padding:15px;
-  border-radius:10px;
-  max-width:1000px;
-  margin:auto;
+background:white;
+max-width:1100px;
+margin:auto;
+padding:15px;
+border-radius:12px;
 }
 
 .cmd{
-  padding:10px;
-  margin:10px 0;
-  border:1px solid #ddd;
-  border-radius:8px;
-  cursor:pointer;
-  background:#fff;
-}
-
-.zone{
-  font-size:18px;
-  font-weight:bold;
-  margin:10px 0;
+padding:12px;
+border:1px solid #ddd;
+border-radius:10px;
+margin:10px 0;
+cursor:pointer;
+background:#fff;
 }
 
 .item{
-  display:flex;
-  justify-content:space-between;
-  padding:10px;
-  border-bottom:1px solid #eee;
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:12px;
+border-bottom:1px solid #eee;
 }
 
-.info{font-size:12px;color:#666;}
+.item.done{
+opacity:0.5;
+background:#f0f0f0;
+}
+
+input{
+width:140px;
+padding:6px;
+border-radius:6px;
+border:1px solid #ccc;
+}
 
 button{
-  padding:6px 10px;
-  border:none;
-  border-radius:6px;
-  cursor:pointer;
+padding:6px 10px;
+border:none;
+border-radius:6px;
+cursor:pointer;
+margin-left:5px;
 }
 
-.read{background:#f39c12;color:white;}
 .valid{background:#2ecc71;color:white;}
 .error{background:#e74c3c;color:white;}
-.restock{background:#e74c3c;color:white;}
-.nav{background:#3498db;color:white;}
-.finish{background:#8e44ad;color:white;}
-.back{background:#e74c3c;color:white;}
+.restock{background:#f39c12;color:white;}
+.back{background:#3498db;color:white;color:white;}
+.nav{background:#9b59b6;color:white;}
+.finish{background:#16a085;color:white;}
+
+.header{
+display:flex;
+justify-content:space-between;
+align-items:center;
+margin-bottom:10px;
+}
 
 .badge{
-  display:inline-block;
-  padding:3px 8px;
-  background:#3498db;
-  color:white;
-  border-radius:6px;
-  font-size:12px;
-}
-.quais{
-  display:flex;
-  gap:15px;
-  align-items:center;
-  font-weight:bold;
-  margin:10px 0;
-}
-.done{
-opacity:0.5;
-background:#dcdcdc;
-}
-.heavy{
-background:#ffcccb;
-border-left:5px solid red;
+background:#3498db;
+color:white;
+padding:3px 8px;
+border-radius:6px;
+font-size:12px;
 }
 
-.fire{
-color:red;
-font-weight:bold;
-margin-left:6px;
-animation:pulse 1s infinite;
-}
-
-@keyframes pulse{
-0%{opacity:1;}
-50%{opacity:0.4;}
-100%{opacity:1;}
-}
 </style>
 </head>
 
 <body>
 
-<h1>📦 WMS PRÉPARATEUR SERVER</h1>
+<h1>📦 WMS PRÉPARATEUR PRO</h1>
 
 <div class="box" id="view"></div>
 
 <script>
 
 /* ======================
+   🌐 SERVEUR RENDER
+====================== */
+const API_URL = "https://TON-APP.onrender.com";
+
+/* ======================
    PRODUITS
 ====================== */
-
 const produits=[
 {nom:"Fromages",emp:"15.002"},
 {nom:"Beurre",emp:"15.003"},
-{nom:"Betterave en conserve",emp:"30.001"},
-{nom:"Carotte en conserve",emp:"30.002"},
-{nom:"Panais en conserve",emp:"30.003"},
-{nom:"Céréale",emp:"30.006"},
-{nom:"Sel de Table",emp:"30.007"},
-{nom:"Moulin a poivre",emp:"30.008"},
-{nom:"Chips",emp:"30.009"},
+{nom:"Carotte",emp:"30.002"},
 {nom:"Sucre",emp:"30.010"},
-{nom:"Farine",emp:"30.011"},
-{nom:"Oeuf",emp:"30.012"},
-{nom:"Miel",emp:"31.001"},
-{nom:"Raisin sec",emp:"31.002"},
-{nom:"Chocolat",emp:"31.003"},
-{nom:"Huile de tournesol",emp:"32.001"},
-{nom:"Huile d'olive",emp:"32.002"},
-{nom:"Huile de colza",emp:"32.003"},
-{nom:"Soupe de carotte",emp:"32.004"},
-{nom:"Soupe de betterave",emp:"32.005"},
-{nom:"Soupe Triple",emp:"32.006"},
-{nom:"Soupe de Panais",emp:"32.007"},
 {nom:"Lait",emp:"32.008"},
-{nom:"Jus de raisin",emp:"32.009"},
-{nom:"Soupe de patate",emp:"32.010"},
-{nom:"Canne a sucre",emp:"40.001"},
 {nom:"Tomates",emp:"40.002"},
-{nom:"Laitue",emp:"40.003"}, 
-{nom:"Fraise",emp:"40.005"}, 
-{nom:"Raisin vrac",emp:"40.006"},
-{nom:"Arbre a chat",emp:"46.001"},
-{nom:"Vêtement",emp:"46.002"},
-{nom:"Mobilier",emp:"46.003"},
-{nom:"Rouleau de papier",emp:"46.004"},
-{nom:"Maison à Oiseaux",emp:"46.005"},
+{nom:"Fraise",emp:"40.005"},
 {nom:"Planche",emp:"46.006"},
-{nom:"Gateaux",emp:"45.003"},
-{nom:"Pain",emp:"45.004"},
 ];
 
 /* ======================
-   🔥 SERVEUR (REMPLACE LOCALSTORAGE)
+   DATA
 ====================== */
+let commandes=[];
+let current=null;
 
-let commandes = [];
+/* ======================
+   LOAD
+====================== */
+async function load(){
 
-/* chargement serveur */
-async function loadCommandes(){
 try{
-let res = await fetch("/commandes");
-let data = await res.json();
+let res = await fetch(API_URL+"/commandes");
+commandes = await res.json();
 
-commandes = data || [];
-
-if(commandes.length === 0){
+if(!commandes.length){
 commandes = gen();
 await save();
 }
@@ -174,13 +139,14 @@ commandes = gen();
 await save();
 menu();
 }
+
 }
 
 /* ======================
-   SAVE SERVEUR
+   SAVE
 ====================== */
 async function save(){
-await fetch("/commandes", {
+await fetch(API_URL+"/commandes",{
 method:"POST",
 headers:{"Content-Type":"application/json"},
 body:JSON.stringify(commandes)
@@ -188,75 +154,38 @@ body:JSON.stringify(commandes)
 }
 
 /* ======================
-   GENERATION COMMANDES
+   GENERATION
 ====================== */
-
 function gen(){
 
 let cmds=[];
-let heavyIndex = [0,1,2,3];
 
-for(let c=0;c<12;c++){
-
-let isHeavyCmd = heavyIndex.includes(c);
+for(let i=0;i<12;i++){
 
 let items = produits.map(p=>{
 
-let zone = p.emp.split(".")[0];
-let qty;
+let qty = Math.floor(Math.random()*3)+1;
 
-if(isHeavyCmd && ["30","32","40","45"].includes(zone)){
-qty = Math.floor(Math.random()*2) + 3;
-}
-else if(isHeavyCmd && zone === "15"){
-qty = Math.floor(Math.random()*2) + 2;
-}
-else{
-qty = Math.floor(Math.random()*2) + 1;
-}
-
-return {...p, qty, zone};
+return {
+...p,
+qty,
+done:false,
+taken:0
+};
 
 });
-
-let prep = ["08","09","10"][Math.floor(Math.random()*3)];
-let dest = ["02","03","04","05","06","07"][Math.floor(Math.random()*6)];
-
-let id = `${dest}-${Math.floor(Math.random()*1000)}`;
 
 cmds.push({
-id,
-prep,
-dest,
+id:"CMD-"+Math.floor(Math.random()*9999),
+prep:"08",
+dest:"02",
 items,
-heavy:isHeavyCmd,
 status:"active"
 });
+
 }
 
 return cmds;
-}
-
-/* ======================
-   START APP
-====================== */
-loadCommandes();
-
-/* ======================
-   COMPTEUR
-====================== */
-function getPaletteProgress(c){
-let total=0,done=0;
-(c?.items||[]).forEach(i=>{
-let qty=parseInt(i.qty)||0;
-total+=qty;
-if(i.done)done+=qty;
-});
-return{
-totalPalettes:total,
-donePalettes:done,
-leftPalettes:total-done
-};
 }
 
 /* ======================
@@ -267,77 +196,51 @@ function menu(){
 let v=document.getElementById("view");
 
 v.innerHTML=`
-<h2>📦 Commandes SERVER</h2>
-
-<button onclick="regenCommandes()" 
-style="background:#3498db;color:white;padding:10px;border:none;border-radius:6px;margin-bottom:10px;">
-🔄 Générer commandes
-</button>
+<div class="header">
+<h2>📦 Commandes</h2>
+<button onclick="regen()" class="nav">🔄 Générer</button>
+</div>
 `;
-
-if(!commandes.length){
-v.innerHTML+="<p>Aucune commande</p>";
-return;
-}
 
 commandes.forEach(c=>{
 
-let p=getPaletteProgress(c);
+let div=document.createElement("div");
+div.className="cmd";
 
-let d=document.createElement("div");
-d.className="cmd "+(c.heavy?"heavy":"")+(c.status==="envoyée"?"done":"");
-
-d.innerHTML=`
-<span class="badge">Quai ${c.prep}</span><br>
-Commande ${c.id}
-${c.heavy? "<span class='fire'>🔥 LOURDE</span>":""}
-<br><br>
-📦 ${p.donePalettes}/${p.totalPalettes}
-<br>⏳ ${p.leftPalettes}
+div.innerHTML=`
+<b>${c.id}</b><br>
+${c.items.length} produits
 `;
 
-d.onclick=()=>open(c);
+div.onclick=()=>open(c);
 
-v.appendChild(d);
+v.appendChild(div);
+
 });
+
 }
 
 /* ======================
-   REGEN
+   OPEN COMMANDE
 ====================== */
-async function regenCommandes(){
-commandes=gen().slice(0,12);
-await save();
-menu();
-}
-
-/* ======================
-   OPEN
-====================== */
-let current=null;
-let zones=[];
-let zi=0;
-
 function open(c){
 current=c;
-if(!current.start)current.start=Date.now();
-zones=[...new Set(current.items.map(i=>i.zone))];
-zi=0;
 render();
 }
 
 /* ======================
-   RENDER
+   RENDER PRODUITS
 ====================== */
 function render(){
 
 let v=document.getElementById("view");
-let z=zones[zi];
-let items=(current.items||[]).filter(i=>i.zone===z);
 
-let done=current.items.filter(i=>i.done).length;
+v.innerHTML=`
+<button class="back" onclick="menu()">🏠 Retour</button>
+<h2>${current.id}</h2>
+`;
 
-items.forEach(i=>{
+current.items.forEach(i=>{
 
 let d=document.createElement("div");
 d.className="item "+(i.done?"done":"");
@@ -345,21 +248,19 @@ d.className="item "+(i.done?"done":"");
 d.innerHTML=`
 <div>
 <b>${i.nom}</b><br>
-${i.emp}<br>
-📦 Demandé : ${i.qty}
+📦 demandé : ${i.qty}<br>
+✔ pris : ${i.taken || 0}
 </div>
 
 <div>
 <input type="number"
 min="0"
 max="${i.qty}"
-value="${i.taken || ""}"
-placeholder="Palettes prises"
-style="width:120px;padding:5px;border-radius:6px;border:1px solid #ccc;">
+placeholder="palettes">
 
-<button onclick="valid(i,this)">✔ Valider</button>
-<button onclick="err(i)">❌</button>
-<button onclick="restock(i)">🚨 Réapro</button>
+<button class="valid" onclick="valid(i,this)">✔</button>
+<button class="error" onclick="err(i)">❌</button>
+<button class="restock" onclick="restock(i)">🚨</button>
 </div>
 `;
 
@@ -367,10 +268,12 @@ v.appendChild(d);
 
 });
 
+}
+
 /* ======================
-   ENVOI CARISTE
+   VALIDATION PRODUIT
 ====================== */
-  async function valid(i, btn){
+async function valid(i,btn){
 
 let input = btn.parentElement.querySelector("input");
 let taken = parseInt(input.value);
@@ -380,13 +283,8 @@ alert("❌ quantité invalide");
 return;
 }
 
-if(taken < 0){
-alert("❌ impossible");
-return;
-}
-
 if(taken > i.qty){
-alert("❌ tu ne peux pas prendre plus que demandé");
+alert("❌ trop élevé");
 return;
 }
 
@@ -395,72 +293,73 @@ i.done = true;
 
 await update();
 
-alert("✔ Produit validé");
-
 render();
-}
 
+}
 
 /* ======================
    ERREUR
 ====================== */
-async function sendError(i){
+async function err(i){
 
-let data = {
-  prod: i.nom,
-  emp: i.emp,
-  zone: i.zone,
-  time: Date.now()
-};
-
-try{
-
-await fetch("http://TON_SERVEUR:3000/errors", {
-  method: "POST",
-  headers: {"Content-Type":"application/json"},
-  body: JSON.stringify(data)
+await fetch(API_URL+"/errors",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+prod:i.nom,
+emp:i.emp,
+time:Date.now()
+})
 });
 
-alert("❌ Erreur envoyée");
-
-}catch(e){
-console.error(e);
-alert("Erreur serveur");
-}
+alert("❌ envoyé");
 
 }
 
 /* ======================
-   REAPRO
+   REAPPRO
 ====================== */
 async function restock(i){
 
-let demande = {
-  prod: i.nom,
-  emp: i.emp,
-  zone: i.zone,
-  qty: i.qty,
-  from: "preparateur",
-  time: Date.now()
-};
-
-try{
-
-await fetch(API + "/restock", {
-  method:"POST",
-  headers:{"Content-Type":"application/json"},
-  body:JSON.stringify(demande)
+await fetch(API_URL+"/restock",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+prod:i.nom,
+emp:i.emp,
+qty:i.qty,
+time:Date.now()
+})
 });
 
-alert("🚨 Demande de réappro envoyée au cariste");
-
-}catch(e){
-console.error(e);
-alert("Erreur serveur réappro");
-}
+alert("🚨 réappro envoyé");
 
 }
 
+/* ======================
+   UPDATE SERVEUR
+====================== */
+async function update(){
+await fetch(API_URL+"/commandes",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify(commandes)
+});
+}
+
+/* ======================
+   REGEN
+====================== */
+async function regen(){
+commandes = gen();
+await save();
+menu();
+}
+
+/* ======================
+   START
+====================== */
+load();
 
 </script>
 
